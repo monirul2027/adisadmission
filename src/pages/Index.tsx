@@ -51,13 +51,13 @@ const Index = () => {
 
     setLoading(true);
     const fd = new FormData(e.currentTarget);
-    const get = (name: string) => (fd.get(name) as string) || "";
+    const get = (name: string) => fd.get(name) as string || "";
 
     try {
       const photoUrl = await uploadFile("student-photos", photo, "photos");
       if (!photoUrl) throw new Error("Photo upload failed");
 
-      let aadharUrl = null, birthUrl = null, sigUrl = null;
+      let aadharUrl = null,birthUrl = null,sigUrl = null;
       if (aadharDoc) aadharUrl = await uploadFile("student-documents", aadharDoc, "aadhar");
       if (birthCert) birthUrl = await uploadFile("student-documents", birthCert, "birth-cert");
       if (guardianSig) sigUrl = await uploadFile("student-documents", guardianSig, "signatures");
@@ -102,7 +102,7 @@ const Index = () => {
         last_institution: get("last_institution"),
         aadhar_doc_url: aadharUrl,
         birth_cert_url: birthUrl,
-        guardian_signature_url: sigUrl,
+        guardian_signature_url: sigUrl
       });
 
       if (error) throw error;
@@ -129,11 +129,11 @@ const Index = () => {
               <p className="text-2xl font-bold text-primary tracking-wider">{appId}</p>
             </div>
             <p className="text-sm text-muted-foreground">Please save this ID for future reference.</p>
-            <Button onClick={() => { setSubmitted(false); setPhoto(null); setPhotoPreview(""); setDob(undefined); }} className="mt-4">Submit Another Application</Button>
+            <Button onClick={() => {setSubmitted(false);setPhoto(null);setPhotoPreview("");setDob(undefined);}} className="mt-4">Submit Another Application</Button>
           </CardContent>
         </Card>
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -141,7 +141,7 @@ const Index = () => {
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-6">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <img src={schoolLogo} alt="School Logo" className="mx-auto h-24 w-24 rounded-full bg-white p-1 mb-3" />
+          <img alt="School Logo" className="mx-auto h-24 w-24 rounded-full bg-white p-1 mb-3" src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" />
           <h1 className="text-2xl md:text-3xl font-bold">Alor Disha Islamic School</h1>
           <p className="text-sm opacity-90 mt-1">Dakshin Krishnanagar Village, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202</p>
           <div className="mt-3 inline-block bg-accent text-accent-foreground px-4 py-1.5 rounded-full text-sm font-semibold">
@@ -155,11 +155,11 @@ const Index = () => {
         <SectionCard title="Student Photograph" required>
           <div className="flex items-center gap-6">
             <div className="h-32 w-28 border-2 border-dashed border-primary/30 rounded-lg flex items-center justify-center overflow-hidden bg-white">
-              {photoPreview ? (
-                <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" />
-              ) : (
-                <Upload className="h-8 w-8 text-muted-foreground" />
-              )}
+              {photoPreview ?
+              <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" /> :
+
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              }
             </div>
             <div>
               <Input type="file" accept="image/*" onChange={handlePhotoChange} className="max-w-xs" />
@@ -229,8 +229,8 @@ const Index = () => {
             <Checkbox id="same_addr" checked={sameAddress} onCheckedChange={(v) => setSameAddress(!!v)} />
             <Label htmlFor="same_addr" className="text-sm cursor-pointer">Permanent Address same as Present Address</Label>
           </div>
-          {!sameAddress && (
-            <>
+          {!sameAddress &&
+          <>
               <h4 className="font-medium text-sm text-primary mb-2">Permanent Address</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField label="Village" name="permanent_vill" />
@@ -241,7 +241,7 @@ const Index = () => {
                 <FormField label="State" name="permanent_state" />
               </div>
             </>
-          )}
+          }
         </SectionCard>
 
         {/* 4. Admission Details */}
@@ -284,30 +284,30 @@ const Index = () => {
           {loading ? "Submitting..." : "Submit Application"}
         </Button>
       </form>
-    </div>
-  );
+    </div>);
+
 };
 
 // Helper components
-const SectionCard = ({ title, required, children }: { title: string; required?: boolean; children: React.ReactNode }) => (
-  <Card>
+const SectionCard = ({ title, required, children }: {title: string;required?: boolean;children: React.ReactNode;}) =>
+<Card>
     <CardContent className="pt-6">
       <h3 className="text-lg font-semibold text-primary mb-4 border-b border-border pb-2">
         {title} {required && <span className="text-destructive text-sm">*</span>}
       </h3>
       {children}
     </CardContent>
-  </Card>
-);
+  </Card>;
 
-const FormField = ({ label, name, required, type = "text", className = "" }: { label: string; name: string; required?: boolean; type?: string; className?: string }) => (
-  <div className={cn("space-y-2", className)}>
+
+const FormField = ({ label, name, required, type = "text", className = "" }: {label: string;name: string;required?: boolean;type?: string;className?: string;}) =>
+<div className={cn("space-y-2", className)}>
     <Label htmlFor={name}>{label} {required && <span className="text-destructive">*</span>}</Label>
     <Input id={name} name={name} type={type} required={required} />
-  </div>
-);
+  </div>;
 
-const SelectField = ({ label, name, options, required }: { label: string; name: string; options: string[]; required?: boolean }) => {
+
+const SelectField = ({ label, name, options, required }: {label: string;name: string;options: string[];required?: boolean;}) => {
   const [value, setValue] = useState("");
   return (
     <div className="space-y-2">
@@ -318,13 +318,13 @@ const SelectField = ({ label, name, options, required }: { label: string; name: 
           <SelectValue placeholder={`Select ${label}`} />
         </SelectTrigger>
         <SelectContent>
-          {options.map((opt) => (
-            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-          ))}
+          {options.map((opt) =>
+          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+          )}
         </SelectContent>
       </Select>
-    </div>
-  );
+    </div>);
+
 };
 
 export default Index;
