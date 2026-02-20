@@ -143,7 +143,9 @@ const Index = () => {
         <div className="max-w-3xl mx-auto px-4 text-center">
           <img alt="School Logo" className="mx-auto h-24 w-24 rounded-full bg-white p-1 mb-3" src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" />
           <h1 className="text-2xl md:text-3xl font-bold">Alor Disha Islamic School</h1>
-          <p className="text-sm opacity-90 mt-1">Dakshin Krishnanagar Village, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202</p>
+          <p className="text-sm opacity-90 mt-1">Dakshin Krishnanagar, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202
+Contact: 8967559607 /9933624600
+          </p>
           <div className="mt-3 inline-block bg-accent text-accent-foreground px-4 py-1.5 rounded-full text-sm font-semibold">
             Application Form for Admission
           </div>
@@ -155,9 +157,7 @@ const Index = () => {
         <SectionCard title="Student Photograph" required>
           <div className="flex items-center gap-6">
             <div className="h-32 w-28 border-2 border-dashed border-primary/30 rounded-lg flex items-center justify-center overflow-hidden bg-white">
-              {photoPreview ?
-              <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" /> :
-
+              {photoPreview ? <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" /> :
               <Upload className="h-8 w-8 text-muted-foreground" />
               }
             </div>
