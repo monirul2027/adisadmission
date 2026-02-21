@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
-import schoolLogo from "@/assets/school-logo.png";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -25,12 +24,12 @@ const AdminLogin = () => {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        toast({ title: "Account created!", description: "You can now log in." });
+        toast({ title: "Account created!", description: "Please check your email to verify, then log in." });
         setIsSignUp(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate("/admin");
+        navigate("/dashboard");
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -43,8 +42,8 @@ const AdminLogin = () => {
     <div className="min-h-screen flex items-center justify-center bg-secondary p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center space-y-3">
-          <img src={schoolLogo} alt="Logo" className="mx-auto h-20 w-20 rounded-full bg-primary p-1" />
-          <CardTitle className="text-primary text-xl">Admin Portal</CardTitle>
+          <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="Logo" className="mx-auto h-20 w-20 rounded-full bg-primary p-1" />
+          <CardTitle className="text-primary text-xl">Staff Portal</CardTitle>
           <p className="text-sm text-muted-foreground">Alor Disha Islamic School</p>
         </CardHeader>
         <CardContent>
