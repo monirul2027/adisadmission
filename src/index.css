@@ -88,3 +88,35 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 }
+
+/* Print styles for A4 form */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  .print\\:block {
+    display: block !important;
+  }
+
+  .print-page {
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto;
+  }
+}

@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           aadhar_doc_url: string | null
           aadhar_no: string | null
+          admission_fee: string | null
           application_id: string
           birth_cert_url: string | null
           created_at: string
@@ -35,6 +36,7 @@ export type Database = {
           last_attended_class: string | null
           last_institution: string | null
           mobile_no: string
+          monthly_fees: string | null
           mother_name: string
           mother_occupation: string | null
           mother_qualification: string | null
@@ -56,11 +58,13 @@ export type Database = {
           religion: string
           sex: string
           status: string
+          user_id: string | null
           whatsapp_no: string | null
         }
         Insert: {
           aadhar_doc_url?: string | null
           aadhar_no?: string | null
+          admission_fee?: string | null
           application_id: string
           birth_cert_url?: string | null
           created_at?: string
@@ -78,6 +82,7 @@ export type Database = {
           last_attended_class?: string | null
           last_institution?: string | null
           mobile_no: string
+          monthly_fees?: string | null
           mother_name: string
           mother_occupation?: string | null
           mother_qualification?: string | null
@@ -99,11 +104,13 @@ export type Database = {
           religion: string
           sex: string
           status?: string
+          user_id?: string | null
           whatsapp_no?: string | null
         }
         Update: {
           aadhar_doc_url?: string | null
           aadhar_no?: string | null
+          admission_fee?: string | null
           application_id?: string
           birth_cert_url?: string | null
           created_at?: string
@@ -121,6 +128,7 @@ export type Database = {
           last_attended_class?: string | null
           last_institution?: string | null
           mobile_no?: string
+          monthly_fees?: string | null
           mother_name?: string
           mother_occupation?: string | null
           mother_qualification?: string | null
@@ -142,6 +150,7 @@ export type Database = {
           religion?: string
           sex?: string
           status?: string
+          user_id?: string | null
           whatsapp_no?: string | null
         }
         Relationships: []
