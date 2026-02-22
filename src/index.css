@@ -103,11 +103,18 @@
     print-color-adjust: exact;
   }
 
-  .print\\:hidden {
+  /* Hide everything except print content */
+  .print\:hidden,
+  header,
+  nav,
+  aside,
+  footer,
+  .toaster,
+  [data-sonner-toaster] {
     display: none !important;
   }
 
-  .print\\:block {
+  .print\:block {
     display: block !important;
   }
 
