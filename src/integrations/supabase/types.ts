@@ -14,6 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_setup: {
+        Row: {
+          configured_at: string
+          id: string
+          is_configured: boolean
+        }
+        Insert: {
+          configured_at?: string
+          id?: string
+          is_configured?: boolean
+        }
+        Update: {
+          configured_at?: string
+          id?: string
+          is_configured?: boolean
+        }
+        Relationships: []
+      }
+      admission_tests: {
+        Row: {
+          applying_for_class: string
+          created_at: string
+          dist: string | null
+          father_name: string
+          id: string
+          landmark: string | null
+          mobile_no: string
+          occupation: string | null
+          po: string | null
+          present_class: string | null
+          present_school: string | null
+          ps: string | null
+          roll_no: string | null
+          session: string
+          state: string | null
+          status: string
+          student_name: string
+          test_id: string
+          user_id: string
+          village: string | null
+          whatsapp_no: string | null
+        }
+        Insert: {
+          applying_for_class: string
+          created_at?: string
+          dist?: string | null
+          father_name: string
+          id?: string
+          landmark?: string | null
+          mobile_no: string
+          occupation?: string | null
+          po?: string | null
+          present_class?: string | null
+          present_school?: string | null
+          ps?: string | null
+          roll_no?: string | null
+          session: string
+          state?: string | null
+          status?: string
+          student_name: string
+          test_id: string
+          user_id: string
+          village?: string | null
+          whatsapp_no?: string | null
+        }
+        Update: {
+          applying_for_class?: string
+          created_at?: string
+          dist?: string | null
+          father_name?: string
+          id?: string
+          landmark?: string | null
+          mobile_no?: string
+          occupation?: string | null
+          po?: string | null
+          present_class?: string | null
+          present_school?: string | null
+          ps?: string | null
+          roll_no?: string | null
+          session?: string
+          state?: string | null
+          status?: string
+          student_name?: string
+          test_id?: string
+          user_id?: string
+          village?: string | null
+          whatsapp_no?: string | null
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           aadhar_doc_url: string | null
@@ -56,6 +146,7 @@ export type Database = {
           present_state: string | null
           present_vill: string | null
           religion: string
+          session: string | null
           sex: string
           status: string
           user_id: string | null
@@ -102,6 +193,7 @@ export type Database = {
           present_state?: string | null
           present_vill?: string | null
           religion: string
+          session?: string | null
           sex: string
           status?: string
           user_id?: string | null
@@ -148,10 +240,80 @@ export type Database = {
           present_state?: string | null
           present_vill?: string | null
           religion?: string
+          session?: string | null
           sex?: string
           status?: string
           user_id?: string | null
           whatsapp_no?: string | null
+        }
+        Relationships: []
+      }
+      form_settings: {
+        Row: {
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          setting_key: string
+          setting_value?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      id_sequences: {
+        Row: {
+          class_name: string | null
+          id: string
+          last_number: number
+          sequence_type: string
+          session: string
+        }
+        Insert: {
+          class_name?: string | null
+          id?: string
+          last_number?: number
+          sequence_type: string
+          session: string
+        }
+        Update: {
+          class_name?: string | null
+          id?: string
+          last_number?: number
+          sequence_type?: string
+          session?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -160,10 +322,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_next_id: {
+        Args: { p_class?: string; p_session: string; p_type: string }
+        Returns: string
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "student"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -290,6 +462,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "student"],
+    },
   },
 } as const
