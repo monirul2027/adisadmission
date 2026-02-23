@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole } from "@/lib/supabase-helpers";
 import { useNavigate } from "react-router-dom";
+import { getSafeErrorMessage } from "@/lib/safe-error";
+import { admissionTestSchema } from "@/lib/form-validation";
 
 const AdmissionTestForm = () => {
   const { toast } = useToast();
@@ -45,6 +47,30 @@ const AdmissionTestForm = () => {
     const get = (name: string) => (fd.get(name) as string) || "";
 
     try {
+      // Validate form inputs
+      const validationResult = admissionTestSchema.safeParse({
+        student_name: get("student_name"),
+        father_name: get("father_name"),
+        mobile_no: get("mobile_no"),
+        whatsapp_no: get("whatsapp_no"),
+        occupation: get("occupation"),
+        village: get("village"),
+        po: get("po"),
+        ps: get("ps"),
+        dist: get("dist"),
+        state: get("state"),
+        landmark: get("landmark"),
+        present_school: get("present_school"),
+        present_class: get("present_class"),
+      });
+
+      if (!validationResult.success) {
+        const firstError = validationResult.error.errors[0];
+        toast({ title: "Validation Error", description: `${firstError.path.join(".")}: ${firstError.message}`, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
       const generatedId = await generateIdViaEdge("admission_test", session);
 
       const insertData: any = {
@@ -76,7 +102,7 @@ const AdmissionTestForm = () => {
       setTestId(generatedId);
       setSubmitted(true);
     } catch (err: any) {
-      toast({ title: "Submission Failed", description: err.message, variant: "destructive" });
+      toast({ title: "Submission Failed", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }

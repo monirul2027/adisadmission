@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { GraduationCap } from "lucide-react";
+import { getSafeErrorMessage } from "@/lib/safe-error";
 
 const StudentLogin = () => {
   const [email, setEmail] = useState("");
@@ -21,12 +22,9 @@ const StudentLogin = () => {
     setLoading(true);
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        // Assign student role
-        if (data.user) {
-          await supabase.from("user_roles").insert({ user_id: data.user.id, role: "student" });
-        }
+        // Role is auto-assigned by database trigger - no client-side insert needed
         toast({ title: "Account created!", description: "Please check your email to verify, then log in." });
         setIsSignUp(false);
       } else {
@@ -35,7 +33,7 @@ const StudentLogin = () => {
         navigate("/student/dashboard");
       }
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }

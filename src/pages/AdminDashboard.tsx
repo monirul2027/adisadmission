@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList } from "lucide-react";
 import { CLASS_OPTIONS, checkUserRole } from "@/lib/supabase-helpers";
+import { getSafeErrorMessage } from "@/lib/safe-error";
 import * as XLSX from "xlsx";
 
 const ALL_CLASSES = ["All", ...CLASS_OPTIONS];
@@ -55,7 +56,7 @@ const AdminDashboard = () => {
 
   const updateAppStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("applications").update({ status }).eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
     setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a));
     toast({ title: "Status updated" });
   };
@@ -75,7 +76,7 @@ const AdminDashboard = () => {
       }
     }
     const { error } = await supabase.from("admission_tests").update(updateData).eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
     setTests(prev => prev.map(t => t.id === id ? { ...t, ...updateData } : t));
     toast({ title: "Status updated" });
   };
@@ -131,7 +132,7 @@ const AdminDashboard = () => {
     if (!editApp) return;
     const { id, ...rest } = editApp;
     const { error } = await supabase.from("applications").update(rest).eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
     setApplications(prev => prev.map(a => a.id === id ? editApp : a));
     setEditApp(null);
     toast({ title: "Application updated" });

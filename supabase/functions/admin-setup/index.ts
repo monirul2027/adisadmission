@@ -49,13 +49,14 @@ Deno.serve(async (req) => {
       });
 
       if (authError) {
-        return new Response(JSON.stringify({ error: authError.message }), {
+        return new Response(JSON.stringify({ error: "Failed to create admin account." }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Assign admin role
+      // Remove auto-assigned student role (from trigger) and assign admin role
+      await supabase.from("user_roles").delete().eq("user_id", authData.user.id).eq("role", "student");
       await supabase.from("user_roles").insert({
         user_id: authData.user.id,
         role: "admin",
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
 
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: "An unexpected error occurred." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

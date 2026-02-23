@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, MAX_PHOTO_SIZE, MAX_DOC_SIZE, validateFileSize, checkUserRole } from "@/lib/supabase-helpers";
 import { useNavigate } from "react-router-dom";
+import { getSafeErrorMessage } from "@/lib/safe-error";
+import { admissionFormSchema } from "@/lib/form-validation";
 
 const NewAdmissionForm = () => {
   const { toast } = useToast();
@@ -84,6 +86,45 @@ const NewAdmissionForm = () => {
       if (birthCert) birthUrl = await uploadFile("student-documents", birthCert, "birth-cert");
       if (guardianSig) sigUrl = await uploadFile("student-documents", guardianSig, "signatures");
 
+      // Validate form inputs
+      const validationResult = admissionFormSchema.safeParse({
+        full_name: get("full_name"),
+        father_name: get("father_name"),
+        mother_name: get("mother_name"),
+        mobile_no: get("mobile_no"),
+        whatsapp_no: get("whatsapp_no"),
+        present_pin: get("present_pin"),
+        permanent_pin: sameAddress ? get("present_pin") : get("permanent_pin"),
+        aadhar_no: get("aadhar_no"),
+        present_vill: get("present_vill"),
+        present_po: get("present_po"),
+        present_ps: get("present_ps"),
+        present_dist: get("present_dist"),
+        present_state: get("present_state"),
+        permanent_vill: sameAddress ? get("present_vill") : get("permanent_vill"),
+        permanent_po: sameAddress ? get("present_po") : get("permanent_po"),
+        permanent_ps: sameAddress ? get("present_ps") : get("permanent_ps"),
+        permanent_dist: sameAddress ? get("present_dist") : get("permanent_dist"),
+        permanent_state: sameAddress ? get("present_state") : get("permanent_state"),
+        health_issue: get("health_issue"),
+        name_bengali: get("name_bengali"),
+        mother_occupation: get("mother_occupation"),
+        mother_qualification: get("mother_qualification"),
+        father_occupation: get("father_occupation"),
+        father_qualification: get("father_qualification"),
+        guardian_name: get("guardian_name"),
+        guardian_relation: get("guardian_relation"),
+        last_attended_class: get("last_attended_class"),
+        last_institution: get("last_institution"),
+      });
+
+      if (!validationResult.success) {
+        const firstError = validationResult.error.errors[0];
+        toast({ title: "Validation Error", description: `${firstError.path.join(".")}: ${firstError.message}`, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
       const applicationId = await generateIdViaEdge("admission", session);
 
       const insertData: any = {
@@ -141,7 +182,7 @@ const NewAdmissionForm = () => {
       setAppId(applicationId);
       setSubmitted(true);
     } catch (err: any) {
-      toast({ title: "Submission Failed", description: err.message, variant: "destructive" });
+      toast({ title: "Submission Failed", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }

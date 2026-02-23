@@ -31,8 +31,28 @@ export const uploadFile = async (
     return null;
   }
 
-  const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-  return data.publicUrl;
+  // Both buckets are now private - store the path for signed URL retrieval
+  return fileName;
+};
+
+/**
+ * Get a signed URL for a file stored in a private bucket.
+ * Returns a time-limited URL (1 hour by default).
+ */
+export const getSignedUrl = async (
+  bucket: string,
+  path: string,
+  expiresIn = 3600
+): Promise<string | null> => {
+  if (!path) return null;
+  // If it's already a full URL (legacy data), return as-is
+  if (path.startsWith("http")) return path;
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
+  if (error) {
+    console.error("Signed URL error:", error);
+    return null;
+  }
+  return data.signedUrl;
 };
 
 export const SESSION_OPTIONS = ["2025", "2026", "2027", "2028", "2029", "2030"];

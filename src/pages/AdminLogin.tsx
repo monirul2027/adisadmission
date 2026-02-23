@@ -7,12 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
+import { getSafeErrorMessage } from "@/lib/safe-error";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -21,18 +21,11 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast({ title: "Account created!", description: "Please check your email to verify, then log in." });
-        setIsSignUp(false);
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate("/dashboard");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      navigate("/dashboard");
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -58,14 +51,8 @@ const AdminLogin = () => {
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               <Lock className="mr-2 h-4 w-4" />
-              {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
+              {loading ? "Please wait..." : "Sign In"}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-              <button type="button" className="text-primary underline" onClick={() => setIsSignUp(!isSignUp)}>
-                {isSignUp ? "Sign In" : "Sign Up"}
-              </button>
-            </p>
           </form>
         </CardContent>
       </Card>
