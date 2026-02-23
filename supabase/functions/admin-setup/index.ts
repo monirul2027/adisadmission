@@ -16,7 +16,6 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     if (req.method === "GET") {
-      // Check if admin is already configured
       const { data } = await supabase.from("admin_setup").select("*").limit(1);
       return new Response(JSON.stringify({ configured: (data && data.length > 0) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -24,19 +23,23 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "POST") {
-      // Check if already configured
-      const { data: existing } = await supabase.from("admin_setup").select("*").limit(1);
-      if (existing && existing.length > 0) {
-        return new Response(JSON.stringify({ error: "Admin already configured" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
       const { email, password } = await req.json();
       if (!email || !password) {
         return new Response(JSON.stringify({ error: "Email and password required" }), {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Atomically insert setup record - unique index prevents race condition
+      const { error: setupError } = await supabase
+        .from("admin_setup")
+        .insert({ is_configured: true });
+
+      if (setupError) {
+        // Unique constraint violation means admin already configured
+        return new Response(JSON.stringify({ error: "Admin already configured" }), {
+          status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -49,6 +52,8 @@ Deno.serve(async (req) => {
       });
 
       if (authError) {
+        // Rollback setup record if user creation fails
+        await supabase.from("admin_setup").delete().eq("is_configured", true);
         return new Response(JSON.stringify({ error: "Failed to create admin account." }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -61,9 +66,6 @@ Deno.serve(async (req) => {
         user_id: authData.user.id,
         role: "admin",
       });
-
-      // Mark setup as complete
-      await supabase.from("admin_setup").insert({ is_configured: true });
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
