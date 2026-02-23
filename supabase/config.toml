@@ -1,1 +1,7 @@
 project_id = "aljrljhrotibrwwqpyoy"
+
+[functions.generate-id]
+verify_jwt = false
+
+[functions.admin-setup]
+verify_jwt = false

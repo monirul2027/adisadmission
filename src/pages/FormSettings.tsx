@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save } from "lucide-react";
 import { checkUserRole } from "@/lib/supabase-helpers";
+import { getSafeErrorMessage } from "@/lib/safe-error";
 
 const FIELD_LABELS: Record<string, string> = {
   name_bengali: "Name in Bengali",
@@ -61,7 +62,7 @@ const FormSettings = () => {
       ]);
       toast({ title: "Settings saved!" });
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setSaving(false);
     }
