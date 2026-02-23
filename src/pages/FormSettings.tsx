@@ -53,12 +53,16 @@ const FormSettings = () => {
     init();
   }, [navigate]);
 
+  const sanitizeInstructions = (text: string): string => {
+    return text.replace(/[<>"']/g, '').substring(0, 1000);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       await Promise.all([
         supabase.from("form_settings").update({ setting_value: fieldVisibility }).eq("setting_key", "admission_form_fields"),
-        supabase.from("form_settings").update({ setting_value: { text: admitCardInstructions } }).eq("setting_key", "admit_card_instructions"),
+        supabase.from("form_settings").update({ setting_value: { text: sanitizeInstructions(admitCardInstructions) } }).eq("setting_key", "admit_card_instructions"),
       ]);
       toast({ title: "Settings saved!" });
     } catch (err: any) {
@@ -108,8 +112,10 @@ const FormSettings = () => {
               value={admitCardInstructions}
               onChange={(e) => setAdmitCardInstructions(e.target.value)}
               rows={6}
+              maxLength={1000}
               placeholder="Enter instructions that will appear on the admit card..."
             />
+            <p className="text-xs text-muted-foreground mt-1">{admitCardInstructions.length}/1000 characters</p>
           </CardContent>
         </Card>
 
