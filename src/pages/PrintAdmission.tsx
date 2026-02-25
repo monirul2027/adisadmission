@@ -10,21 +10,34 @@ const PrintAdmission = () => {
   const [app, setApp] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [signedUrls, setSignedUrls] = useState<Record<string, string | null>>({});
+  const [signatures, setSignatures] = useState<{ head_master: string | null; exam_controller: string | null }>({ head_master: null, exam_controller: null });
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data } = await supabase.from("applications").select("*").eq("id", id).single();
-      setApp(data);
-      if (data) {
-        // Resolve signed URLs for all file fields
+      const [appRes, settingsRes] = await Promise.all([
+        supabase.from("applications").select("*").eq("id", id).single(),
+        supabase.from("form_settings").select("*").eq("setting_key", "signature_images").single(),
+      ]);
+      setApp(appRes.data);
+      if (appRes.data) {
         const [photoUrl, aadharUrl, birthUrl, sigUrl] = await Promise.all([
-          getSignedUrl("student-photos", data.photo_url),
-          getSignedUrl("student-documents", data.aadhar_doc_url),
-          getSignedUrl("student-documents", data.birth_cert_url),
-          getSignedUrl("student-documents", data.guardian_signature_url),
+          getSignedUrl("student-photos", appRes.data.photo_url),
+          getSignedUrl("student-documents", appRes.data.aadhar_doc_url),
+          getSignedUrl("student-documents", appRes.data.birth_cert_url),
+          getSignedUrl("student-documents", appRes.data.guardian_signature_url),
         ]);
         setSignedUrls({ photo: photoUrl, aadhar: aadharUrl, birth: birthUrl, signature: sigUrl });
+
+        // Load dynamic signatures if approved
+        if (appRes.data.status === "Approved" && settingsRes.data) {
+          const sigVal = settingsRes.data.setting_value as any;
+          const [hmUrl, ecUrl] = await Promise.all([
+            getSignedUrl("signature-uploads", sigVal?.head_master),
+            getSignedUrl("signature-uploads", sigVal?.exam_controller),
+          ]);
+          setSignatures({ head_master: hmUrl, exam_controller: ecUrl });
+        }
         setTimeout(() => window.print(), 500);
       }
       setLoading(false);
@@ -111,12 +124,19 @@ const PrintAdmission = () => {
 
         <div className="flex justify-between mt-8 pt-4">
           <div className="text-center">
+            {signedUrls.signature && <img src={signedUrls.signature} alt="Guardian Signature" className="h-10 mx-auto mb-1 object-contain" />}
             <div className="border-t border-black w-32 mx-auto mb-1"></div>
             <p className="text-[9px]">Guardian's Signature</p>
           </div>
           <div className="text-center">
+            {signatures.exam_controller && <img src={signatures.exam_controller} alt="Exam Controller Sign" className="h-10 mx-auto mb-1 object-contain" />}
             <div className="border-t border-black w-32 mx-auto mb-1"></div>
-            <p className="text-[9px]">Office Use Only</p>
+            <p className="text-[9px]">Exam Controller</p>
+          </div>
+          <div className="text-center">
+            {signatures.head_master && <img src={signatures.head_master} alt="Head Master Sign" className="h-10 mx-auto mb-1 object-contain" />}
+            <div className="border-t border-black w-32 mx-auto mb-1"></div>
+            <p className="text-[9px]">Head Teacher (with seal)</p>
           </div>
         </div>
       </div>

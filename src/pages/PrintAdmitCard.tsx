@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { getSignedUrl } from "@/lib/supabase-helpers";
 
 const PrintAdmitCard = () => {
   const { id } = useParams();
   const [test, setTest] = useState<any>(null);
   const [instructions, setInstructions] = useState("");
+  const [signatures, setSignatures] = useState<{ head_master: string | null; exam_controller: string | null }>({ head_master: null, exam_controller: null });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -15,12 +17,25 @@ const PrintAdmitCard = () => {
     const fetch = async () => {
       const [testRes, settingsRes] = await Promise.all([
         supabase.from("admission_tests").select("*").eq("id", id).single(),
-        supabase.from("form_settings").select("setting_value").eq("setting_key", "admit_card_instructions").single(),
+        supabase.from("form_settings").select("*"),
       ]);
       setTest(testRes.data);
+
       if (settingsRes.data) {
-        const val = settingsRes.data.setting_value as Record<string, string> | null;
-        setInstructions(val?.text || "");
+        const instrSetting = settingsRes.data.find((d: any) => d.setting_key === "admit_card_instructions");
+        if (instrSetting) {
+          const val = instrSetting.setting_value as Record<string, string> | null;
+          setInstructions(val?.text || "");
+        }
+        const sigSetting = settingsRes.data.find((d: any) => d.setting_key === "signature_images");
+        if (sigSetting && testRes.data?.status === "Approved") {
+          const sigVal = sigSetting.setting_value as any;
+          const [hmUrl, ecUrl] = await Promise.all([
+            getSignedUrl("signature-uploads", sigVal?.head_master),
+            getSignedUrl("signature-uploads", sigVal?.exam_controller),
+          ]);
+          setSignatures({ head_master: hmUrl, exam_controller: ecUrl });
+        }
       }
       setLoading(false);
       if (testRes.data) setTimeout(() => window.print(), 500);
@@ -54,6 +69,7 @@ const PrintAdmitCard = () => {
           <div className="bg-black text-white py-1 px-4 inline-block font-bold text-lg tracking-wider">
             ADMIT CARD
           </div>
+          <p className="mt-2 text-sm font-semibold">Exam Venue - Alor Disha Islamic School</p>
         </div>
 
         {/* Card Body */}
@@ -110,10 +126,16 @@ const PrintAdmitCard = () => {
               <p className="text-[10px] font-semibold">Student's Signature</p>
             </div>
             <div className="text-center">
+              {signatures.exam_controller && (
+                <img src={signatures.exam_controller} alt="Exam Controller Sign" className="h-12 mx-auto mb-1 object-contain" />
+              )}
               <div className="border-t-2 border-black w-36 mx-auto mb-1"></div>
               <p className="text-[10px] font-semibold">Sign of Exam Controller</p>
             </div>
             <div className="text-center">
+              {signatures.head_master && (
+                <img src={signatures.head_master} alt="Head Master Sign" className="h-12 mx-auto mb-1 object-contain" />
+              )}
               <div className="border-t-2 border-black w-40 mx-auto mb-1"></div>
               <p className="text-[10px] font-semibold">Sign of Head Teacher<br />(with seal)</p>
             </div>

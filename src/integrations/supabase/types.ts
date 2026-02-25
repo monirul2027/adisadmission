@@ -117,6 +117,7 @@ export type Database = {
           father_name: string
           father_occupation: string | null
           father_qualification: string | null
+          form_filled_by: string | null
           full_name: string
           guardian_name: string | null
           guardian_relation: string | null
@@ -164,6 +165,7 @@ export type Database = {
           father_name: string
           father_occupation?: string | null
           father_qualification?: string | null
+          form_filled_by?: string | null
           full_name: string
           guardian_name?: string | null
           guardian_relation?: string | null
@@ -211,6 +213,7 @@ export type Database = {
           father_name?: string
           father_occupation?: string | null
           father_qualification?: string | null
+          form_filled_by?: string | null
           full_name?: string
           guardian_name?: string | null
           guardian_relation?: string | null
