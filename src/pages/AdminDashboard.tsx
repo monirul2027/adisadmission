@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList } from "lucide-react";
-import { CLASS_OPTIONS, checkUserRole } from "@/lib/supabase-helpers";
+import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import * as XLSX from "xlsx";
 
@@ -21,6 +21,7 @@ const AdminDashboard = () => {
   const [applications, setApplications] = useState<any[]>([]);
   const [tests, setTests] = useState<any[]>([]);
   const [filteredClass, setFilteredClass] = useState("All");
+  const [filteredSession, setFilteredSession] = useState("All");
   const [search, setSearch] = useState("");
   const [editApp, setEditApp] = useState<any>(null);
   const [editTest, setEditTest] = useState<any>(null);
@@ -88,14 +89,16 @@ const AdminDashboard = () => {
 
   const filteredApps = applications.filter(a => {
     const classMatch = filteredClass === "All" || a.desired_class === filteredClass;
+    const sessionMatch = filteredSession === "All" || a.session === filteredSession;
     const searchMatch = !search || a.full_name?.toLowerCase().includes(search.toLowerCase()) || a.application_id?.toLowerCase().includes(search.toLowerCase());
-    return classMatch && searchMatch;
+    return classMatch && sessionMatch && searchMatch;
   });
 
   const filteredTests = tests.filter(t => {
     const classMatch = filteredClass === "All" || t.applying_for_class === filteredClass;
+    const sessionMatch = filteredSession === "All" || t.session === filteredSession;
     const searchMatch = !search || t.student_name?.toLowerCase().includes(search.toLowerCase()) || t.test_id?.toLowerCase().includes(search.toLowerCase());
-    return classMatch && searchMatch;
+    return classMatch && sessionMatch && searchMatch;
   });
 
   const exportAdmissions = (classFilter?: string) => {
@@ -193,7 +196,14 @@ const AdminDashboard = () => {
           <h1 className="text-2xl font-bold text-primary">
             {filteredClass === "All" ? "All Applications" : filteredClass}
           </h1>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+            <Select value={filteredSession} onValueChange={setFilteredSession}>
+              <SelectTrigger className="w-32"><SelectValue placeholder="Session" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Sessions</SelectItem>
+                {SESSION_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <div className="relative flex-1 sm:flex-initial">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-full sm:w-56" />
@@ -221,25 +231,33 @@ const AdminDashboard = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted">
-                    <TableHead>App ID</TableHead>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Application No.</TableHead>
                     <TableHead>Class</TableHead>
-                    <TableHead>Session</TableHead>
-                    <TableHead>Mobile</TableHead>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Father's Name</TableHead>
+                    <TableHead>Village</TableHead>
+                    <TableHead>P.O</TableHead>
+                    <TableHead>P.S</TableHead>
+                    <TableHead>District</TableHead>
+                    <TableHead>Phone Number</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                   ) : filteredApps.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No applications found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No applications found.</TableCell></TableRow>
                   ) : filteredApps.map(app => (
                     <TableRow key={app.id}>
                       <TableCell className="font-mono text-xs">{app.application_id}</TableCell>
-                      <TableCell className="font-medium">{app.full_name}</TableCell>
                       <TableCell>{app.desired_class}</TableCell>
-                      <TableCell>{app.session || "—"}</TableCell>
+                      <TableCell className="font-medium">{app.full_name}</TableCell>
+                      <TableCell>{app.father_name}</TableCell>
+                      <TableCell>{app.present_vill || "—"}</TableCell>
+                      <TableCell>{app.present_po || "—"}</TableCell>
+                      <TableCell>{app.present_ps || "—"}</TableCell>
+                      <TableCell>{app.present_dist || "—"}</TableCell>
                       <TableCell>{app.mobile_no}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 flex-wrap">
@@ -277,25 +295,33 @@ const AdminDashboard = () => {
                 <TableHeader>
                   <TableRow className="bg-muted">
                     <TableHead>Test ID</TableHead>
-                    <TableHead>Name</TableHead>
                     <TableHead>Class</TableHead>
-                    <TableHead>Session</TableHead>
-                    <TableHead>Roll No</TableHead>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Father's Name</TableHead>
+                    <TableHead>Village</TableHead>
+                    <TableHead>P.O</TableHead>
+                    <TableHead>P.S</TableHead>
+                    <TableHead>District</TableHead>
+                    <TableHead>Phone Number</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                   ) : filteredTests.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No test applications found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No test applications found.</TableCell></TableRow>
                   ) : filteredTests.map(test => (
                     <TableRow key={test.id}>
                       <TableCell className="font-mono text-xs">{test.test_id}</TableCell>
-                      <TableCell className="font-medium">{test.student_name}</TableCell>
                       <TableCell>{test.applying_for_class}</TableCell>
-                      <TableCell>{test.session}</TableCell>
-                      <TableCell>{test.roll_no || "—"}</TableCell>
+                      <TableCell className="font-medium">{test.student_name}</TableCell>
+                      <TableCell>{test.father_name}</TableCell>
+                      <TableCell>{test.village || "—"}</TableCell>
+                      <TableCell>{test.po || "—"}</TableCell>
+                      <TableCell>{test.ps || "—"}</TableCell>
+                      <TableCell>{test.dist || "—"}</TableCell>
+                      <TableCell>{test.mobile_no}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 flex-wrap">
                           <Select value={test.status} onValueChange={v => updateTestStatus(test.id, v)}>

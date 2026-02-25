@@ -8,8 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save } from "lucide-react";
-import { checkUserRole } from "@/lib/supabase-helpers";
+import { ArrowLeft, Save, Upload } from "lucide-react";
+import { checkUserRole, uploadFile, validateFileSize, MAX_DOC_SIZE } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 
 const FIELD_LABELS: Record<string, string> = {
@@ -29,6 +29,8 @@ const FIELD_LABELS: Record<string, string> = {
 const FormSettings = () => {
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>({});
   const [admitCardInstructions, setAdmitCardInstructions] = useState("");
+  const [headMasterSignUrl, setHeadMasterSignUrl] = useState("");
+  const [examControllerSignUrl, setExamControllerSignUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -45,8 +47,14 @@ const FormSettings = () => {
       if (data) {
         const fields = data.find(d => d.setting_key === "admission_form_fields");
         const instructions = data.find(d => d.setting_key === "admit_card_instructions");
+        const signatures = data.find(d => d.setting_key === "signature_images");
         if (fields) setFieldVisibility(fields.setting_value as Record<string, boolean>);
         if (instructions) setAdmitCardInstructions((instructions.setting_value as any)?.text || "");
+        if (signatures) {
+          const sigVal = signatures.setting_value as any;
+          setHeadMasterSignUrl(sigVal?.head_master || "");
+          setExamControllerSignUrl(sigVal?.exam_controller || "");
+        }
       }
       setLoading(false);
     };
@@ -63,12 +71,31 @@ const FormSettings = () => {
       await Promise.all([
         supabase.from("form_settings").update({ setting_value: fieldVisibility }).eq("setting_key", "admission_form_fields"),
         supabase.from("form_settings").update({ setting_value: { text: sanitizeInstructions(admitCardInstructions) } }).eq("setting_key", "admit_card_instructions"),
+        supabase.from("form_settings").upsert({
+          setting_key: "signature_images",
+          setting_value: { head_master: headMasterSignUrl, exam_controller: examControllerSignUrl },
+        }, { onConflict: "setting_key" }),
       ]);
       toast({ title: "Settings saved!" });
     } catch (err: any) {
       toast({ title: "Error", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "head_master" | "exam_controller") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const err = validateFileSize(file, MAX_DOC_SIZE, "Signature");
+    if (err) { toast({ title: "File too large", description: err, variant: "destructive" }); return; }
+    const path = await uploadFile("signature-uploads", file, type);
+    if (path) {
+      if (type === "head_master") setHeadMasterSignUrl(path);
+      else setExamControllerSignUrl(path);
+      toast({ title: `${type === "head_master" ? "Head Master" : "Exam Controller"} signature uploaded` });
+    } else {
+      toast({ title: "Upload failed", variant: "destructive" });
     }
   };
 
@@ -116,6 +143,29 @@ const FormSettings = () => {
               placeholder="Enter instructions that will appear on the admit card..."
             />
             <p className="text-xs text-muted-foreground mt-1">{admitCardInstructions.length}/1000 characters</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-primary">Signature Uploads</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Head Master Sign</Label>
+              <div className="flex items-center gap-3">
+                <Input type="file" accept="image/*" onChange={(e) => handleSignatureUpload(e, "head_master")} className="max-w-xs" />
+                {headMasterSignUrl && <span className="text-xs text-green-600">✓ Uploaded</span>}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Exam Controller Sign</Label>
+              <div className="flex items-center gap-3">
+                <Input type="file" accept="image/*" onChange={(e) => handleSignatureUpload(e, "exam_controller")} className="max-w-xs" />
+                {examControllerSignUrl && <span className="text-xs text-green-600">✓ Uploaded</span>}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Max 50 KB each. These signatures will appear on printed forms when status is "Approved".</p>
           </CardContent>
         </Card>
 

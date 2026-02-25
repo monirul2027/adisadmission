@@ -163,7 +163,17 @@ const AdmissionTestForm = () => {
 
         <SectionCard title="Address">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FormField label="Village" name="village" />
+            <VillageCombobox
+              name="village"
+              onAutoFill={(fields) => {
+                const form = document.querySelector("form");
+                if (!form) return;
+                (form.querySelector('[name="po"]') as HTMLInputElement).value = fields.po;
+                (form.querySelector('[name="ps"]') as HTMLInputElement).value = fields.ps;
+                (form.querySelector('[name="dist"]') as HTMLInputElement).value = fields.dist;
+                (form.querySelector('[name="state"]') as HTMLInputElement).value = fields.state;
+              }}
+            />
             <FormField label="P.O" name="po" />
             <FormField label="P.S" name="ps" />
             <FormField label="District" name="dist" />
@@ -223,5 +233,39 @@ const SelectField = ({ label, value, onValueChange, options, required }: { label
     </Select>
   </div>
 );
+
+const VILLAGE_OPTIONS = ["Dakshin Krishnanagar", "Uttar Krishnanagar", "Antardwipa", "Malancha"];
+
+const ADDRESS_MAP: Record<string, { po: string; ps: string; dist: string; pin: string; state: string }> = {
+  "Dakshin Krishnanagar": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Uttar Krishnanagar": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Malancha": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Antardwipa": { po: "Bhasaipaikar", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+};
+
+const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fields: { po: string; ps: string; dist: string; pin?: string; state: string }) => void }) => {
+  const [value, setValue] = useState("");
+  const handleChange = (val: string) => {
+    setValue(val);
+    const match = ADDRESS_MAP[val];
+    if (match) onAutoFill(match);
+  };
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={name}>Village</Label>
+      <Input
+        id={name}
+        name={name}
+        list={`${name}-list`}
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder="Select or type village"
+      />
+      <datalist id={`${name}-list`}>
+        {VILLAGE_OPTIONS.map(v => <option key={v} value={v} />)}
+      </datalist>
+    </div>
+  );
+};
 
 export default AdmissionTestForm;
