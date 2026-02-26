@@ -36,6 +36,8 @@ export const admissionFormSchema = z.object({
   guardian_relation: optionalText,
   last_attended_class: optionalText,
   last_institution: optionalText,
+  form_filled_by: nameField,
+  landmark: optionalText,
 });
 
 export const admissionTestSchema = z.object({

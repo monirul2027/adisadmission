@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Upload } from "lucide-react";
+import { ArrowLeft, Save, Upload, Trash2 } from "lucide-react";
 import { checkUserRole, uploadFile, validateFileSize, MAX_DOC_SIZE } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 
@@ -99,6 +99,12 @@ const FormSettings = () => {
     }
   };
 
+  const handleDeleteSignature = (type: "head_master" | "exam_controller") => {
+    if (type === "head_master") setHeadMasterSignUrl("");
+    else setExamControllerSignUrl("");
+    toast({ title: `${type === "head_master" ? "Head Master" : "Exam Controller"} signature removed. Save to apply.` });
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;
 
   return (
@@ -155,17 +161,31 @@ const FormSettings = () => {
               <Label>Head Master Sign</Label>
               <div className="flex items-center gap-3">
                 <Input type="file" accept="image/*" onChange={(e) => handleSignatureUpload(e, "head_master")} className="max-w-xs" />
-                {headMasterSignUrl && <span className="text-xs text-green-600">✓ Uploaded</span>}
+                {headMasterSignUrl && (
+                  <>
+                    <span className="text-xs text-green-600">✓ Uploaded</span>
+                    <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleDeleteSignature("head_master")}>
+                      <Trash2 className="mr-1 h-3 w-3" /> Remove
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
             <div className="space-y-2">
               <Label>Exam Controller Sign</Label>
               <div className="flex items-center gap-3">
                 <Input type="file" accept="image/*" onChange={(e) => handleSignatureUpload(e, "exam_controller")} className="max-w-xs" />
-                {examControllerSignUrl && <span className="text-xs text-green-600">✓ Uploaded</span>}
+                {examControllerSignUrl && (
+                  <>
+                    <span className="text-xs text-green-600">✓ Uploaded</span>
+                    <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleDeleteSignature("exam_controller")}>
+                      <Trash2 className="mr-1 h-3 w-3" /> Remove
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Max 50 KB each. These signatures will appear on printed forms when status is "Approved".</p>
+            <p className="text-xs text-muted-foreground">Max 50 KB each. Head Master sign appears on Admission Form & Admit Card. Exam Controller sign appears only on Admit Card.</p>
           </CardContent>
         </Card>
 

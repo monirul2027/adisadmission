@@ -13,6 +13,7 @@ import AdmissionTestForm from "./pages/AdmissionTestForm";
 import AdminDashboard from "./pages/AdminDashboard";
 import FormSettings from "./pages/FormSettings";
 import PrintAdmission from "./pages/PrintAdmission";
+import PrintAdmissionTest from "./pages/PrintAdmissionTest";
 import PrintAdmitCard from "./pages/PrintAdmitCard";
 import NotFound from "./pages/NotFound";
 
@@ -39,7 +40,7 @@ const App = () => (
           {/* Print routes */}
           <Route path="/print/admission/:id" element={<PrintAdmission />} />
           <Route path="/print/admit-card/:id" element={<PrintAdmitCard />} />
-          <Route path="/print/test/:id" element={<PrintAdmission />} />
+          <Route path="/print/test/:id" element={<PrintAdmissionTest />} />
           {/* Legacy redirects */}
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />
           <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />

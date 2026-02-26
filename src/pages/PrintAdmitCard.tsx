@@ -1,12 +1,26 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { getSignedUrl } from "@/lib/supabase-helpers";
 
+const waitForImages = (container: HTMLElement): Promise<void> => {
+  const imgs = Array.from(container.querySelectorAll("img"));
+  const promises = imgs.map(img => {
+    if (img.complete) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+    });
+  });
+  return Promise.all(promises).then(() => {});
+};
+
 const PrintAdmitCard = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const viewOnly = searchParams.get("view") === "true";
   const [test, setTest] = useState<any>(null);
   const [instructions, setInstructions] = useState("");
   const [signatures, setSignatures] = useState<{ head_master: string | null; exam_controller: string | null }>({ head_master: null, exam_controller: null });
@@ -14,7 +28,7 @@ const PrintAdmitCard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchAll = async () => {
       const [testRes, settingsRes] = await Promise.all([
         supabase.from("admission_tests").select("*").eq("id", id).single(),
         supabase.from("form_settings").select("*"),
@@ -38,10 +52,21 @@ const PrintAdmitCard = () => {
         }
       }
       setLoading(false);
-      if (testRes.data) setTimeout(() => window.print(), 500);
     };
-    fetch();
+    fetchAll();
   }, [id]);
+
+  // Print after images load
+  useEffect(() => {
+    if (!loading && test && !viewOnly) {
+      const container = document.getElementById("admit-card-content");
+      if (container) {
+        waitForImages(container).then(() => {
+          setTimeout(() => window.print(), 200);
+        });
+      }
+    }
+  }, [loading, test, viewOnly]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!test) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Test application not found.</div>;
@@ -56,58 +81,47 @@ const PrintAdmitCard = () => {
         </Button>
       </div>
 
-      <div className="print-page w-[210mm] mx-auto p-[15mm] text-[12px] font-sans">
+      <div id="admit-card-content" className="print-page w-[210mm] mx-auto p-[15mm] text-[12px] font-sans relative">
+        {/* Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06] print:opacity-[0.06]" aria-hidden="true">
+          <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="" className="w-[180mm] h-[180mm] object-contain" />
+        </div>
+
         {/* Header */}
-        <div className="text-center border-2 border-black p-4 mb-0">
+        <div className="text-center border-2 border-black p-4 mb-0 relative z-10">
           <div className="flex items-center justify-center gap-3 mb-2">
             <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="Logo" className="h-16 w-16 rounded-full" />
             <div>
-              <h1 className="text-xl font-bold">Alor Disha Islamic School</h1>
+              <h1 className="text-2xl font-bold">Alor Disha Islamic School</h1>
               <p className="text-[10px]">Dakshin Krishnanagar, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202</p>
+              <p className="text-[10px]">Mob: 9933624600 / 8016238853 / 78725 96349 / 7586985349</p>
             </div>
           </div>
           <div className="bg-black text-white py-1 px-4 inline-block font-bold text-lg tracking-wider">
             ADMIT CARD
           </div>
-          <p className="mt-2 text-sm font-semibold">Exam Venue - Alor Disha Islamic School</p>
         </div>
 
         {/* Card Body */}
-        <div className="border-2 border-black border-t-0 p-4">
+        <div className="border-2 border-black border-t-0 p-4 relative z-10">
           <table className="w-full border-collapse mb-4">
             <tbody>
-              <tr className="border border-black">
-                <td className="border border-black px-3 py-2 font-semibold w-[35%] bg-gray-100">Test ID</td>
-                <td className="border border-black px-3 py-2 font-mono">{test.test_id}</td>
-              </tr>
-              <tr className="border border-black">
-                <td className="border border-black px-3 py-2 font-semibold bg-gray-100">Student's Name</td>
-                <td className="border border-black px-3 py-2 font-bold">{test.student_name}</td>
-              </tr>
-              <tr className="border border-black">
-                <td className="border border-black px-3 py-2 font-semibold bg-gray-100">Father's Name</td>
-                <td className="border border-black px-3 py-2">{test.father_name}</td>
-              </tr>
-              <tr className="border border-black">
-                <td className="border border-black px-3 py-2 font-semibold bg-gray-100">Address</td>
-                <td className="border border-black px-3 py-2">{address || "—"}</td>
-              </tr>
-              <tr className="border border-black">
-                <td className="border border-black px-3 py-2 font-semibold bg-gray-100">Session</td>
-                <td className="border border-black px-3 py-2">{test.session}</td>
-              </tr>
-              <tr className="border border-black">
-                <td className="border border-black px-3 py-2 font-semibold bg-gray-100">Present Class</td>
-                <td className="border border-black px-3 py-2">{test.present_class || "—"}</td>
-              </tr>
-              <tr className="border border-black">
-                <td className="border border-black px-3 py-2 font-semibold bg-gray-100">Applying for Class</td>
-                <td className="border border-black px-3 py-2 font-bold">{test.applying_for_class}</td>
-              </tr>
-              <tr className="border border-black">
-                <td className="border border-black px-3 py-2 font-semibold bg-gray-100">Roll No</td>
-                <td className="border border-black px-3 py-2 font-bold text-lg">{test.roll_no || "—"}</td>
-              </tr>
+              {[
+                ["Test ID", test.test_id],
+                ["Student's Name", test.student_name],
+                ["Father's Name", test.father_name],
+                ["Address", address || "—"],
+                ["Session", test.session],
+                ["Present Class", test.present_class || "—"],
+                ["Applying for Class", test.applying_for_class],
+                ["Roll No", test.roll_no || "—"],
+                ["Exam Venue / Centre", "Alor Disha Islamic School"],
+              ].map(([label, value], i) => (
+                <tr key={i} className="border border-black">
+                  <td className="border border-black px-3 py-2 font-semibold w-[35%] bg-gray-100 print:bg-gray-100">{label}</td>
+                  <td className={`border border-black px-3 py-2 ${label === "Roll No" ? "font-bold text-lg" : label === "Student's Name" || label === "Applying for Class" ? "font-bold" : ""}`}>{value}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
 
@@ -119,7 +133,7 @@ const PrintAdmitCard = () => {
             </div>
           )}
 
-          {/* Signatures */}
+          {/* Signatures - Both Exam Controller and Head Teacher on Admit Card */}
           <div className="flex justify-between mt-12 pt-4">
             <div className="text-center">
               <div className="border-t-2 border-black w-36 mx-auto mb-1"></div>

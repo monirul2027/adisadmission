@@ -1,16 +1,30 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { getSignedUrl } from "@/lib/supabase-helpers";
 
+const waitForImages = (container: HTMLElement): Promise<void> => {
+  const imgs = Array.from(container.querySelectorAll("img"));
+  const promises = imgs.map(img => {
+    if (img.complete) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+    });
+  });
+  return Promise.all(promises).then(() => {});
+};
+
 const PrintAdmission = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const viewOnly = searchParams.get("view") === "true";
   const [app, setApp] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [signedUrls, setSignedUrls] = useState<Record<string, string | null>>({});
-  const [signatures, setSignatures] = useState<{ head_master: string | null; exam_controller: string | null }>({ head_master: null, exam_controller: null });
+  const [signatures, setSignatures] = useState<{ head_master: string | null }>({ head_master: null });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,21 +43,29 @@ const PrintAdmission = () => {
         ]);
         setSignedUrls({ photo: photoUrl, aadhar: aadharUrl, birth: birthUrl, signature: sigUrl });
 
-        // Load dynamic signatures if approved
+        // Only Head Teacher sign on Admission Form (NOT Exam Controller)
         if (appRes.data.status === "Approved" && settingsRes.data) {
           const sigVal = settingsRes.data.setting_value as any;
-          const [hmUrl, ecUrl] = await Promise.all([
-            getSignedUrl("signature-uploads", sigVal?.head_master),
-            getSignedUrl("signature-uploads", sigVal?.exam_controller),
-          ]);
-          setSignatures({ head_master: hmUrl, exam_controller: ecUrl });
+          const hmUrl = await getSignedUrl("signature-uploads", sigVal?.head_master);
+          setSignatures({ head_master: hmUrl });
         }
-        setTimeout(() => window.print(), 500);
       }
       setLoading(false);
     };
     fetchData();
   }, [id]);
+
+  // Print after images load
+  useEffect(() => {
+    if (!loading && app && !viewOnly) {
+      const container = document.getElementById("print-content");
+      if (container) {
+        waitForImages(container).then(() => {
+          setTimeout(() => window.print(), 200);
+        });
+      }
+    }
+  }, [loading, app, viewOnly]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!app) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Application not found.</div>;
@@ -59,106 +81,106 @@ const PrintAdmission = () => {
         </Button>
       </div>
 
-      <div className="print-page w-[210mm] min-h-[297mm] max-h-[297mm] mx-auto p-[12mm] text-[11px] leading-tight font-sans overflow-hidden box-border">
-        <div className="text-center border-b-2 border-black pb-2 mb-3">
-          <div className="flex items-center justify-center gap-3">
-            <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="Logo" className="h-14 w-14 rounded-full" />
-            <div>
-              <h1 className="text-lg font-bold">Alor Disha Islamic School</h1>
-              <p className="text-[9px]">Dakshin Krishnanagar, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202</p>
+      <div id="print-content">
+        <div className="print-page w-[210mm] min-h-[297mm] max-h-[297mm] mx-auto p-[12mm] text-[11px] leading-tight font-sans overflow-hidden box-border">
+          <div className="text-center border-b-2 border-black pb-2 mb-3">
+            <div className="flex items-center justify-center gap-3">
+              <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="Logo" className="h-14 w-14 rounded-full" />
+              <div>
+                <h1 className="text-2xl font-bold">Alor Disha Islamic School</h1>
+                <p className="text-[9px]">Dakshin Krishnanagar, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202</p>
+                <p className="text-[9px]">Mob: 9933624600 / 8016238853 / 78725 96349 / 7586985349</p>
+              </div>
+            </div>
+            <p className="font-bold mt-1 text-sm">APPLICATION FORM FOR ADMISSION</p>
+            <p className="text-[9px]">Application ID: {app.application_id} | Session: {app.session || "—"} | Date: {new Date(app.created_at).toLocaleDateString()}</p>
+          </div>
+
+          <div className="flex gap-3 mb-3">
+            <div className="flex-1">
+              <PrintTable rows={[
+                ["Full Name", app.full_name],
+                ["Father's Name", app.father_name],
+                ["Class Applied", app.desired_class],
+                ["Date of Birth", app.date_of_birth],
+                ["Sex", app.sex],
+                ["Religion", app.religion],
+                ["Nationality", "INDIAN"],
+              ]} />
+            </div>
+            <div className="w-[25mm] h-[30mm] border border-black flex-shrink-0">
+              {signedUrls.photo && <img src={signedUrls.photo} alt="Photo" className="w-full h-full object-cover" />}
             </div>
           </div>
-          <p className="font-bold mt-1 text-sm">APPLICATION FORM FOR ADMISSION</p>
-          <p className="text-[9px]">Application ID: {app.application_id} | Session: {app.session || "—"} | Date: {new Date(app.created_at).toLocaleDateString()}</p>
-        </div>
 
-        <div className="flex gap-3 mb-3">
-          <div className="flex-1">
-            <PrintTable rows={[
-              ["Full Name", app.full_name],
-              ["Father's Name", app.father_name],
-              ["Class Applied", app.desired_class],
-              ["Date of Birth", app.date_of_birth],
-              ["Sex", app.sex],
-              ["Religion", app.religion],
-              ["Nationality", "INDIAN"],
-            ]} />
-          </div>
-          <div className="w-[25mm] h-[30mm] border border-black flex-shrink-0">
-            {signedUrls.photo && <img src={signedUrls.photo} alt="Photo" className="w-full h-full object-cover" />}
-          </div>
-        </div>
+          <PrintTable rows={[
+            ["Aadhar No", app.aadhar_no || "—"],
+            ["Health Issue", app.health_issue || "None"],
+            ["Name in Bengali", app.name_bengali || "—"],
+            ["Form Filled in by", app.form_filled_by || "—"],
+          ]} />
 
-        <PrintTable rows={[
-          ["Aadhar No", app.aadhar_no || "—"],
-          ["Health Issue", app.health_issue || "None"],
-          ["Name in Bengali", app.name_bengali || "—"],
-        ]} />
+          <h3 className="font-bold mt-3 mb-1 text-xs border-b border-black">PARENTS / GUARDIAN INFORMATION</h3>
+          <PrintTable rows={[
+            ["Father's Occupation", app.father_occupation || "—"],
+            ["Father's Qualification", app.father_qualification || "—"],
+            ["Mother's Name", app.mother_name],
+            ["Mother's Occupation", app.mother_occupation || "—"],
+            ["Mother's Qualification", app.mother_qualification || "—"],
+            ["Guardian Name", app.guardian_name || "—"],
+            ["Relation", app.guardian_relation || "—"],
+          ]} />
 
-        <h3 className="font-bold mt-3 mb-1 text-xs border-b border-black">PARENTS / GUARDIAN INFORMATION</h3>
-        <PrintTable rows={[
-          ["Father's Occupation", app.father_occupation || "—"],
-          ["Father's Qualification", app.father_qualification || "—"],
-          ["Mother's Name", app.mother_name],
-          ["Mother's Occupation", app.mother_occupation || "—"],
-          ["Mother's Qualification", app.mother_qualification || "—"],
-          ["Guardian Name", app.guardian_name || "—"],
-          ["Relation", app.guardian_relation || "—"],
-        ]} />
+          <h3 className="font-bold mt-3 mb-1 text-xs border-b border-black">CONTACT & ADDRESS</h3>
+          <PrintTable rows={[
+            ["Present Address", addr("present") || "—"],
+            ["Permanent Address", addr("permanent") || "—"],
+            ["Landmark", app.landmark || "—"],
+            ["Phone No", app.mobile_no],
+            ["WhatsApp No", app.whatsapp_no || "—"],
+          ]} />
 
-        <h3 className="font-bold mt-3 mb-1 text-xs border-b border-black">CONTACT & ADDRESS</h3>
-        <PrintTable rows={[
-          ["Present Address", addr("present") || "—"],
-          ["Permanent Address", addr("permanent") || "—"],
-          ["Phone No", app.mobile_no],
-          ["WhatsApp No", app.whatsapp_no || "—"],
-        ]} />
+          <h3 className="font-bold mt-3 mb-1 text-xs border-b border-black">FEES</h3>
+          <PrintTable rows={[
+            ["Last Attended Class", app.last_attended_class || "—"],
+            ["Last Institution", app.last_institution || "—"],
+            ["Monthly Fees", app.monthly_fees ? `₹${app.monthly_fees}` : "—"],
+            ["Admission Fee", app.admission_fee ? `₹${app.admission_fee}` : "—"],
+          ]} />
 
-        <h3 className="font-bold mt-3 mb-1 text-xs border-b border-black">ADMISSION & FINANCIAL</h3>
-        <PrintTable rows={[
-          ["Last Attended Class", app.last_attended_class || "—"],
-          ["Last Institution", app.last_institution || "—"],
-          ["Monthly Fees", app.monthly_fees ? `₹${app.monthly_fees}` : "—"],
-          ["Admission Fee", app.admission_fee ? `₹${app.admission_fee}` : "—"],
-        ]} />
-
-        <div className="flex justify-between mt-8 pt-4">
-          <div className="text-center">
-            {signedUrls.signature && <img src={signedUrls.signature} alt="Guardian Signature" className="h-10 mx-auto mb-1 object-contain" />}
-            <div className="border-t border-black w-32 mx-auto mb-1"></div>
-            <p className="text-[9px]">Guardian's Signature</p>
-          </div>
-          <div className="text-center">
-            {signatures.exam_controller && <img src={signatures.exam_controller} alt="Exam Controller Sign" className="h-10 mx-auto mb-1 object-contain" />}
-            <div className="border-t border-black w-32 mx-auto mb-1"></div>
-            <p className="text-[9px]">Exam Controller</p>
-          </div>
-          <div className="text-center">
-            {signatures.head_master && <img src={signatures.head_master} alt="Head Master Sign" className="h-10 mx-auto mb-1 object-contain" />}
-            <div className="border-t border-black w-32 mx-auto mb-1"></div>
-            <p className="text-[9px]">Head Teacher (with seal)</p>
+          <div className="flex justify-between mt-8 pt-4">
+            <div className="text-center">
+              {signedUrls.signature && <img src={signedUrls.signature} alt="Guardian Signature" className="h-10 mx-auto mb-1 object-contain" />}
+              <div className="border-t border-black w-32 mx-auto mb-1"></div>
+              <p className="text-[9px]">Guardian's Signature</p>
+            </div>
+            <div className="text-center">
+              {signatures.head_master && <img src={signatures.head_master} alt="Head Master Sign" className="h-10 mx-auto mb-1 object-contain" />}
+              <div className="border-t border-black w-32 mx-auto mb-1"></div>
+              <p className="text-[9px]">Sign of Head Teacher (with seal)</p>
+            </div>
           </div>
         </div>
+
+        {signedUrls.aadhar && (
+          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
+            <h2 className="text-base font-bold mb-4 text-center">Aadhar Card — {app.full_name}</h2>
+            <img src={signedUrls.aadhar} alt="Aadhar Card" className="max-w-full max-h-[250mm] object-contain" />
+          </div>
+        )}
+        {signedUrls.birth && (
+          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
+            <h2 className="text-base font-bold mb-4 text-center">Birth Certificate — {app.full_name}</h2>
+            <img src={signedUrls.birth} alt="Birth Certificate" className="max-w-full max-h-[250mm] object-contain" />
+          </div>
+        )}
+        {signedUrls.signature && (
+          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
+            <h2 className="text-base font-bold mb-4 text-center">Guardian Signature — {app.full_name}</h2>
+            <img src={signedUrls.signature} alt="Guardian Signature" className="max-w-full max-h-[250mm] object-contain" />
+          </div>
+        )}
       </div>
-
-      {signedUrls.aadhar && (
-        <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
-          <h2 className="text-base font-bold mb-4 text-center">Aadhar Card — {app.full_name}</h2>
-          <img src={signedUrls.aadhar} alt="Aadhar Card" className="max-w-full max-h-[250mm] object-contain" />
-        </div>
-      )}
-      {signedUrls.birth && (
-        <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
-          <h2 className="text-base font-bold mb-4 text-center">Birth Certificate — {app.full_name}</h2>
-          <img src={signedUrls.birth} alt="Birth Certificate" className="max-w-full max-h-[250mm] object-contain" />
-        </div>
-      )}
-      {signedUrls.signature && (
-        <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
-          <h2 className="text-base font-bold mb-4 text-center">Guardian Signature — {app.full_name}</h2>
-          <img src={signedUrls.signature} alt="Guardian Signature" className="max-w-full max-h-[250mm] object-contain" />
-        </div>
-      )}
     </>
   );
 };

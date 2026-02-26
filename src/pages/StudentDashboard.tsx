@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Search, Plus, FileText, Printer, ClipboardList } from "lucide-react";
+import { LogOut, Search, Plus, FileText, Printer, ClipboardList, Eye } from "lucide-react";
 
 const StudentDashboard = () => {
   const [applications, setApplications] = useState<any[]>([]);
@@ -16,8 +16,15 @@ const StudentDashboard = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "admissions");
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -121,7 +128,7 @@ const StudentDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="admissions">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList>
             <TabsTrigger value="admissions">My Admissions ({applications.length})</TabsTrigger>
             <TabsTrigger value="tests">My Tests ({tests.length})</TabsTrigger>
@@ -152,7 +159,10 @@ const StudentDashboard = () => {
                       <TableCell>{app.desired_class}</TableCell>
                       <TableCell>{app.session || "—"}</TableCell>
                       <TableCell>{statusBadge(app.status)}</TableCell>
-                      <TableCell>
+                      <TableCell className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => window.open(`/print/admission/${app.id}?view=true`, "_blank")}>
+                          <Eye className="mr-1 h-3 w-3" /> View
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => handlePrintForm(app)}>
                           <Printer className="mr-1 h-3 w-3" /> Print
                         </Button>
@@ -190,7 +200,10 @@ const StudentDashboard = () => {
                       <TableCell>{test.session}</TableCell>
                       <TableCell>{statusBadge(test.status)}</TableCell>
                       <TableCell className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => handlePrintForm(test)}>
+                        <Button size="sm" variant="outline" onClick={() => window.open(`/print/test/${test.id}?view=true`, "_blank")}>
+                          <Eye className="mr-1 h-3 w-3" /> View
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/print/test/${test.id}`)}>
                           <Printer className="mr-1 h-3 w-3" /> Print
                         </Button>
                         {test.status === "Approved" && (

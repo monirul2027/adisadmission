@@ -5,10 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, ArrowLeft } from "lucide-react";
+import { CheckCircle2, ArrowLeft, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole } from "@/lib/supabase-helpers";
+import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, uploadFile, validateFileSize, MAX_PHOTO_SIZE } from "@/lib/supabase-helpers";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionTestSchema } from "@/lib/form-validation";
@@ -23,6 +23,7 @@ const AdmissionTestForm = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [session, setSession] = useState("");
   const [applyingClass, setApplyingClass] = useState("");
+  const [studentSig, setStudentSig] = useState<File | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -73,6 +74,11 @@ const AdmissionTestForm = () => {
 
       const generatedId = await generateIdViaEdge("admission_test", session);
 
+      let studentSigUrl = null;
+      if (studentSig) {
+        studentSigUrl = await uploadFile("student-documents", studentSig, "student-signatures");
+      }
+
       const insertData: any = {
         user_id: userId,
         test_id: generatedId,
@@ -91,6 +97,7 @@ const AdmissionTestForm = () => {
         whatsapp_no: get("whatsapp_no"),
         present_school: get("present_school"),
         present_class: get("present_class"),
+        student_signature_url: studentSigUrl,
       };
 
       if (isAdmin) {
@@ -196,6 +203,20 @@ const AdmissionTestForm = () => {
           </div>
         </SectionCard>
 
+        <SectionCard title="Student Signature (Optional)">
+          <div className="space-y-2">
+            <Label>Upload Student Signature (Max 30 KB)</Label>
+            <Input type="file" accept="image/*" onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const err = validateFileSize(file, MAX_PHOTO_SIZE, "Student Signature");
+                if (err) { toast({ title: "File too large", description: err, variant: "destructive" }); e.target.value = ""; return; }
+                setStudentSig(file);
+              }
+            }} />
+          </div>
+        </SectionCard>
+
         <Button type="submit" size="lg" className="w-full text-lg py-6" disabled={loading}>
           {loading ? "Submitting..." : "Submit Test Application"}
         </Button>
@@ -237,10 +258,10 @@ const SelectField = ({ label, value, onValueChange, options, required }: { label
 const VILLAGE_OPTIONS = ["Dakshin Krishnanagar", "Uttar Krishnanagar", "Antardwipa", "Malancha"];
 
 const ADDRESS_MAP: Record<string, { po: string; ps: string; dist: string; pin: string; state: string }> = {
-  "Dakshin Krishnanagar": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
-  "Uttar Krishnanagar": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
-  "Malancha": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
-  "Antardwipa": { po: "Bhasaipaikar", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Dakshin Krishnanagar": { po: "Malancha", ps: "Samserganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Uttar Krishnanagar": { po: "Malancha", ps: "Samserganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Malancha": { po: "Malancha", ps: "Samserganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Antardwipa": { po: "Bhasaipaikar", ps: "Samserganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
 };
 
 const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fields: { po: string; ps: string; dist: string; pin?: string; state: string }) => void }) => {
