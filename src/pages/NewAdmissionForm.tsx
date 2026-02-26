@@ -116,6 +116,8 @@ const NewAdmissionForm = () => {
         guardian_relation: get("guardian_relation"),
         last_attended_class: get("last_attended_class"),
         last_institution: get("last_institution"),
+        form_filled_by: get("form_filled_by"),
+        landmark: get("landmark"),
       });
 
       if (!validationResult.success) {
@@ -178,6 +180,7 @@ const NewAdmissionForm = () => {
       }
 
       insertData.form_filled_by = get("form_filled_by");
+      insertData.landmark = get("landmark");
 
       const { error } = await supabase.from("applications").insert(insertData);
       if (error) throw error;
@@ -303,6 +306,7 @@ const NewAdmissionForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Phone Number" name="mobile_no" required type="tel" />
             <FormField label="WhatsApp Number" name="whatsapp_no" type="tel" />
+            <FormField label="Landmark" name="landmark" className="md:col-span-2" />
           </div>
         </SectionCard>
 
@@ -346,7 +350,7 @@ const NewAdmissionForm = () => {
 
         {/* Form Filled in by */}
         <SectionCard title="Form Details">
-          <FormField label="Form Filled in by" name="form_filled_by" />
+          <FormField label="Form Filled in by" name="form_filled_by" required />
         </SectionCard>
 
         {/* Fees */}
@@ -431,10 +435,10 @@ const SelectField = ({ label, value, onValueChange, options, required }: { label
 const VILLAGE_OPTIONS = ["Dakshin Krishnanagar", "Uttar Krishnanagar", "Antardwipa", "Malancha"];
 
 const ADDRESS_MAP: Record<string, { po: string; ps: string; dist: string; pin: string; state: string }> = {
-  "Dakshin Krishnanagar": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
-  "Uttar Krishnanagar": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
-  "Malancha": { po: "Malancha", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
-  "Antardwipa": { po: "Bhasaipaikar", ps: "Samsherganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Dakshin Krishnanagar": { po: "Malancha", ps: "Samserganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Uttar Krishnanagar": { po: "Malancha", ps: "Samserganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Malancha": { po: "Malancha", ps: "Samserganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
+  "Antardwipa": { po: "Bhasaipaikar", ps: "Samserganj", dist: "Murshidabad", pin: "742202", state: "West Bengal" },
 };
 
 const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fields: { po: string; ps: string; dist: string; pin: string; state: string }) => void }) => {

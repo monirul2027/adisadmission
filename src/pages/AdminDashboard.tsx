@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList } from "lucide-react";
+import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList, Eye } from "lucide-react";
 import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import * as XLSX from "xlsx";
@@ -26,9 +26,15 @@ const AdminDashboard = () => {
   const [editApp, setEditApp] = useState<any>(null);
   const [editTest, setEditTest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("admission");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "admission");
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -65,7 +71,6 @@ const AdminDashboard = () => {
   const updateTestStatus = async (id: string, status: string) => {
     let updateData: any = { status };
     if (status === "Approved") {
-      // Generate roll number
       const test = tests.find(t => t.id === id);
       if (test && !test.roll_no) {
         try {
@@ -109,6 +114,8 @@ const AdminDashboard = () => {
       "Application ID": a.application_id, "Name": a.full_name, "Father": a.father_name,
       "Class": a.desired_class, "Session": a.session || "", "DOB": a.date_of_birth,
       "Sex": a.sex, "Religion": a.religion, "Mobile": a.mobile_no,
+      "Village": a.present_vill || "", "P.O": a.present_po || "", "P.S": a.present_ps || "",
+      "District": a.present_dist || "", "Landmark": a.landmark || "",
       "Monthly Fees": a.monthly_fees || "", "Admission Fee": a.admission_fee || "",
       "Status": a.status, "Applied On": new Date(a.created_at).toLocaleDateString(),
     }));
@@ -118,17 +125,22 @@ const AdminDashboard = () => {
     XLSX.writeFile(wb, `Admissions_${classFilter || filteredClass}_${Date.now()}.xlsx`);
   };
 
-  const exportTests = () => {
-    const exportData = filteredTests.map(t => ({
+  const exportTests = (classFilter?: string) => {
+    const data = classFilter && classFilter !== "All"
+      ? tests.filter(t => t.applying_for_class === classFilter)
+      : filteredTests;
+    const exportData = data.map(t => ({
       "Test ID": t.test_id, "Name": t.student_name, "Father": t.father_name,
       "Class": t.applying_for_class, "Session": t.session, "Mobile": t.mobile_no,
+      "Village": t.village || "", "P.O": t.po || "", "P.S": t.ps || "",
+      "District": t.dist || "", "Landmark": t.landmark || "",
       "Roll No": t.roll_no || "", "Status": t.status,
       "Applied On": new Date(t.created_at).toLocaleDateString(),
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Tests");
-    XLSX.writeFile(wb, `AdmissionTests_${Date.now()}.xlsx`);
+    XLSX.writeFile(wb, `AdmissionTests_${classFilter || filteredClass}_${Date.now()}.xlsx`);
   };
 
   const saveEditApp = async () => {
@@ -139,6 +151,16 @@ const AdminDashboard = () => {
     setApplications(prev => prev.map(a => a.id === id ? editApp : a));
     setEditApp(null);
     toast({ title: "Application updated" });
+  };
+
+  const saveEditTest = async () => {
+    if (!editTest) return;
+    const { id, ...rest } = editTest;
+    const { error } = await supabase.from("admission_tests").update(rest).eq("id", id);
+    if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
+    setTests(prev => prev.map(t => t.id === id ? editTest : t));
+    setEditTest(null);
+    toast({ title: "Test updated" });
   };
 
   const statusBadge = (status: string) => {
@@ -211,7 +233,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList>
             <TabsTrigger value="admission">Admissions ({filteredApps.length})</TabsTrigger>
             <TabsTrigger value="test">Admission Tests ({filteredTests.length})</TabsTrigger>
@@ -220,7 +242,7 @@ const AdminDashboard = () => {
           <TabsContent value="admission">
             <div className="flex gap-2 mb-3 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => exportAdmissions()}>
-                <Download className="mr-1 h-4 w-4" /> Export Current
+                <Download className="mr-1 h-4 w-4" /> Export All
               </Button>
               <Select onValueChange={(v) => exportAdmissions(v)}>
                 <SelectTrigger className="w-44 h-9 text-sm"><SelectValue placeholder="Export Class-wise" /></SelectTrigger>
@@ -269,6 +291,9 @@ const AdminDashboard = () => {
                               <SelectItem value="Rejected">Rejected</SelectItem>
                             </SelectContent>
                           </Select>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => window.open(`/print/admission/${app.id}?view=true`, "_blank")}>
+                            <Eye className="mr-1 h-3 w-3" /> View
+                          </Button>
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate(`/print/admission/${app.id}`)}>
                             <Printer className="mr-1 h-3 w-3" /> Print
                           </Button>
@@ -285,10 +310,14 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="test">
-            <div className="mb-3">
-              <Button size="sm" variant="outline" onClick={exportTests}>
-                <Download className="mr-1 h-4 w-4" /> Export Tests
+            <div className="flex gap-2 mb-3 flex-wrap">
+              <Button size="sm" variant="outline" onClick={() => exportTests()}>
+                <Download className="mr-1 h-4 w-4" /> Export All
               </Button>
+              <Select onValueChange={(v) => exportTests(v)}>
+                <SelectTrigger className="w-44 h-9 text-sm"><SelectValue placeholder="Export Class-wise" /></SelectTrigger>
+                <SelectContent>{CLASS_OPTIONS.map(cls => <SelectItem key={cls} value={cls}>{cls}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
             <div className="border rounded-lg overflow-hidden">
               <Table>
@@ -332,6 +361,9 @@ const AdminDashboard = () => {
                               <SelectItem value="Rejected">Rejected</SelectItem>
                             </SelectContent>
                           </Select>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => window.open(`/print/test/${test.id}?view=true`, "_blank")}>
+                            <Eye className="mr-1 h-3 w-3" /> View
+                          </Button>
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate(`/print/test/${test.id}`)}>
                             <Printer className="mr-1 h-3 w-3" /> Print
                           </Button>
@@ -340,6 +372,9 @@ const AdminDashboard = () => {
                               Admit Card
                             </Button>
                           )}
+                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditTest({ ...test })}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -387,6 +422,40 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <Button onClick={saveEditApp} className="w-full">Save Changes</Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Test Dialog */}
+      <Dialog open={!!editTest} onOpenChange={() => setEditTest(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {editTest && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-primary">Edit Test — {editTest.test_id}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Student Name</Label>
+                    <Input value={editTest.student_name || ""} onChange={e => setEditTest({ ...editTest, student_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Father's Name</Label>
+                    <Input value={editTest.father_name || ""} onChange={e => setEditTest({ ...editTest, father_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Mobile</Label>
+                    <Input value={editTest.mobile_no || ""} onChange={e => setEditTest({ ...editTest, mobile_no: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Village</Label>
+                    <Input value={editTest.village || ""} onChange={e => setEditTest({ ...editTest, village: e.target.value })} />
+                  </div>
+                </div>
+                <Button onClick={saveEditTest} className="w-full">Save Changes</Button>
               </div>
             </>
           )}

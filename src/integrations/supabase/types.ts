@@ -51,6 +51,7 @@ export type Database = {
           state: string | null
           status: string
           student_name: string
+          student_signature_url: string | null
           test_id: string
           user_id: string
           village: string | null
@@ -74,6 +75,7 @@ export type Database = {
           state?: string | null
           status?: string
           student_name: string
+          student_signature_url?: string | null
           test_id: string
           user_id: string
           village?: string | null
@@ -97,6 +99,7 @@ export type Database = {
           state?: string | null
           status?: string
           student_name?: string
+          student_signature_url?: string | null
           test_id?: string
           user_id?: string
           village?: string | null
@@ -124,6 +127,7 @@ export type Database = {
           guardian_signature_url: string | null
           health_issue: string | null
           id: string
+          landmark: string | null
           last_attended_class: string | null
           last_institution: string | null
           mobile_no: string
@@ -172,6 +176,7 @@ export type Database = {
           guardian_signature_url?: string | null
           health_issue?: string | null
           id?: string
+          landmark?: string | null
           last_attended_class?: string | null
           last_institution?: string | null
           mobile_no: string
@@ -220,6 +225,7 @@ export type Database = {
           guardian_signature_url?: string | null
           health_issue?: string | null
           id?: string
+          landmark?: string | null
           last_attended_class?: string | null
           last_institution?: string | null
           mobile_no?: string
