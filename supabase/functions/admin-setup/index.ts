@@ -23,9 +23,35 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "POST") {
+      // Defense-in-depth: fast-fail if already configured before parsing body
+      const { data: existing } = await supabase.from("admin_setup").select("id").limit(1);
+      if (existing && existing.length > 0) {
+        return new Response(JSON.stringify({ error: "Admin already configured" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { email, password } = await req.json();
+
+      // Input validation
       if (!email || !password) {
         return new Response(JSON.stringify({ error: "Email and password required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (typeof email !== "string" || !emailRegex.test(email) || email.length > 254) {
+        return new Response(JSON.stringify({ error: "Invalid email format." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+        return new Response(JSON.stringify({ error: "Password must be between 8 and 128 characters." }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -37,7 +63,6 @@ Deno.serve(async (req) => {
         .insert({ is_configured: true });
 
       if (setupError) {
-        // Unique constraint violation means admin already configured
         return new Response(JSON.stringify({ error: "Admin already configured" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
