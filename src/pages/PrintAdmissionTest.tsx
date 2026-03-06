@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { getSignedUrl } from "@/lib/supabase-helpers";
+import { getSignedUrl, checkUserRole } from "@/lib/supabase-helpers";
+import { toast } from "@/hooks/use-toast";
 
 const PrintHeader = () => (
   <div className="text-center border-b-2 border-black pb-2 mb-3">
@@ -30,7 +31,21 @@ const PrintAdmissionTest = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/student/login"); return; }
+
       const { data } = await supabase.from("admission_tests").select("*").eq("id", id).single();
+
+      // Authorization: only owner or admin can view
+      if (data) {
+        const role = await checkUserRole(session.user.id);
+        if (role !== "admin" && data.user_id !== session.user.id) {
+          toast({ title: "Access Denied", description: "You don't have permission to view this record.", variant: "destructive" });
+          navigate("/student/dashboard");
+          return;
+        }
+      }
+
       setTest(data);
       if (data?.student_signature_url) {
         const url = await getSignedUrl("student-documents", data.student_signature_url);

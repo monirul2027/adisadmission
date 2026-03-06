@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { getSignedUrl } from "@/lib/supabase-helpers";
+import { getSignedUrl, checkUserRole } from "@/lib/supabase-helpers";
+import { toast } from "@/hooks/use-toast";
 
 const waitForImages = (container: HTMLElement): Promise<void> => {
   const imgs = Array.from(container.querySelectorAll("img"));
@@ -29,10 +30,24 @@ const PrintAdmitCard = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/student/login"); return; }
+
       const [testRes, settingsRes] = await Promise.all([
         supabase.from("admission_tests").select("*").eq("id", id).single(),
         supabase.from("form_settings").select("*"),
       ]);
+
+      // Authorization: only owner or admin can view
+      if (testRes.data) {
+        const role = await checkUserRole(session.user.id);
+        if (role !== "admin" && testRes.data.user_id !== session.user.id) {
+          toast({ title: "Access Denied", description: "You don't have permission to view this record.", variant: "destructive" });
+          navigate("/student/dashboard");
+          return;
+        }
+      }
+
       setTest(testRes.data);
 
       if (settingsRes.data) {

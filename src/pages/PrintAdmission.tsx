@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { getSignedUrl } from "@/lib/supabase-helpers";
+import { getSignedUrl, checkUserRole } from "@/lib/supabase-helpers";
+import { toast } from "@/hooks/use-toast";
 
 const waitForImages = (container: HTMLElement): Promise<void> => {
   const imgs = Array.from(container.querySelectorAll("img"));
@@ -29,10 +30,24 @@ const PrintAdmission = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/student/login"); return; }
+
       const [appRes, settingsRes] = await Promise.all([
         supabase.from("applications").select("*").eq("id", id).single(),
         supabase.from("form_settings").select("*").eq("setting_key", "signature_images").single(),
       ]);
+
+      // Authorization: only owner or admin can view
+      if (appRes.data) {
+        const role = await checkUserRole(session.user.id);
+        if (role !== "admin" && appRes.data.user_id !== session.user.id) {
+          toast({ title: "Access Denied", description: "You don't have permission to view this application.", variant: "destructive" });
+          navigate("/student/dashboard");
+          return;
+        }
+      }
+
       setApp(appRes.data);
       if (appRes.data) {
         const [photoUrl, aadharUrl, birthUrl, sigUrl] = await Promise.all([
