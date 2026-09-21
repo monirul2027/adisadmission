@@ -12,7 +12,7 @@ import { CalendarIcon, CheckCircle2, Upload, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, MAX_PHOTO_SIZE, MAX_DOC_SIZE, validateFileSize, checkUserRole } from "@/lib/supabase-helpers";
+import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, MAX_PHOTO_SIZE, MAX_DOC_SIZE, validateFileSize, checkUserRole } from "@/lib/supabase-helpers";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionFormSchema } from "@/lib/form-validation";
@@ -76,9 +76,11 @@ const NewAdmissionForm = () => {
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     const get = (name: string) => (fd.get(name) as string) || "";
+    const uploaded: { bucket: string; path: string | null }[] = [];
 
     try {
       const photoUrl = await uploadFile("student-photos", photo, "photos");
+      uploaded.push({ bucket: "student-photos", path: photoUrl });
       if (!photoUrl) throw new Error("Photo upload failed");
 
       let aadharUrl = null, birthUrl = null, sigUrl = null;
