@@ -36,6 +36,23 @@ export const uploadFile = async (
 };
 
 /**
+ * Remove files that were uploaded during a submission that ultimately failed,
+ * so no orphaned files are left behind in storage.
+ */
+export const cleanupUploads = async (items: { bucket: string; path: string | null }[]) => {
+  const byBucket: Record<string, string[]> = {};
+  for (const it of items) {
+    if (!it.path || it.path.startsWith("http")) continue;
+    (byBucket[it.bucket] ||= []).push(it.path);
+  }
+  await Promise.all(
+    Object.entries(byBucket).map(([bucket, paths]) =>
+      supabase.storage.from(bucket).remove(paths).catch(() => undefined)
+    )
+  );
+};
+
+/**
  * Get a signed URL for a file stored in a private bucket.
  * Returns a time-limited URL (1 hour by default).
  */

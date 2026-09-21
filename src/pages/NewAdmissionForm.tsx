@@ -12,7 +12,7 @@ import { CalendarIcon, CheckCircle2, Upload, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, MAX_PHOTO_SIZE, MAX_DOC_SIZE, validateFileSize, checkUserRole } from "@/lib/supabase-helpers";
+import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, MAX_PHOTO_SIZE, MAX_DOC_SIZE, validateFileSize, checkUserRole } from "@/lib/supabase-helpers";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionFormSchema } from "@/lib/form-validation";
@@ -76,15 +76,22 @@ const NewAdmissionForm = () => {
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     const get = (name: string) => (fd.get(name) as string) || "";
+    const uploaded: { bucket: string; path: string | null }[] = [];
 
     try {
       const photoUrl = await uploadFile("student-photos", photo, "photos");
+      uploaded.push({ bucket: "student-photos", path: photoUrl });
       if (!photoUrl) throw new Error("Photo upload failed");
 
       let aadharUrl = null, birthUrl = null, sigUrl = null;
       if (aadharDoc) aadharUrl = await uploadFile("student-documents", aadharDoc, "aadhar");
       if (birthCert) birthUrl = await uploadFile("student-documents", birthCert, "birth-cert");
       if (guardianSig) sigUrl = await uploadFile("student-documents", guardianSig, "signatures");
+      uploaded.push(
+        { bucket: "student-documents", path: aadharUrl },
+        { bucket: "student-documents", path: birthUrl },
+        { bucket: "student-documents", path: sigUrl },
+      );
 
       // Validate form inputs
       const validationResult = admissionFormSchema.safeParse({
@@ -123,6 +130,7 @@ const NewAdmissionForm = () => {
       if (!validationResult.success) {
         const firstError = validationResult.error.errors[0];
         toast({ title: "Validation Error", description: `${firstError.path.join(".")}: ${firstError.message}`, variant: "destructive" });
+        await cleanupUploads(uploaded);
         setLoading(false);
         return;
       }
@@ -182,11 +190,23 @@ const NewAdmissionForm = () => {
       insertData.form_filled_by = get("form_filled_by");
       insertData.landmark = get("landmark");
 
-      const { error } = await supabase.from("applications").insert(insertData);
+      // Re-confirm the session so the row is inserted as the signed-in user (RLS: auth.uid() = user_id)
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!authSession) throw new Error("Your session expired. Please sign in again and resubmit.");
+      insertData.user_id = authSession.user.id;
+
+      const { data: inserted, error } = await supabase
+        .from("applications")
+        .insert(insertData)
+        .select("id")
+        .single();
       if (error) throw error;
+      if (!inserted?.id) throw new Error("The application could not be saved. Please try again.");
       setAppId(applicationId);
       setSubmitted(true);
     } catch (err: any) {
+      await cleanupUploads(uploaded);
+      console.error("Application submission failed:", err);
       toast({ title: "Submission Failed", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
