@@ -87,6 +87,11 @@ const NewAdmissionForm = () => {
       if (aadharDoc) aadharUrl = await uploadFile("student-documents", aadharDoc, "aadhar");
       if (birthCert) birthUrl = await uploadFile("student-documents", birthCert, "birth-cert");
       if (guardianSig) sigUrl = await uploadFile("student-documents", guardianSig, "signatures");
+      uploaded.push(
+        { bucket: "student-documents", path: aadharUrl },
+        { bucket: "student-documents", path: birthUrl },
+        { bucket: "student-documents", path: sigUrl },
+      );
 
       // Validate form inputs
       const validationResult = admissionFormSchema.safeParse({
@@ -125,6 +130,7 @@ const NewAdmissionForm = () => {
       if (!validationResult.success) {
         const firstError = validationResult.error.errors[0];
         toast({ title: "Validation Error", description: `${firstError.path.join(".")}: ${firstError.message}`, variant: "destructive" });
+        await cleanupUploads(uploaded);
         setLoading(false);
         return;
       }
@@ -184,11 +190,23 @@ const NewAdmissionForm = () => {
       insertData.form_filled_by = get("form_filled_by");
       insertData.landmark = get("landmark");
 
-      const { error } = await supabase.from("applications").insert(insertData);
+      // Re-confirm the session so the row is inserted as the signed-in user (RLS: auth.uid() = user_id)
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!authSession) throw new Error("Your session expired. Please sign in again and resubmit.");
+      insertData.user_id = authSession.user.id;
+
+      const { data: inserted, error } = await supabase
+        .from("applications")
+        .insert(insertData)
+        .select("id")
+        .single();
       if (error) throw error;
+      if (!inserted?.id) throw new Error("The application could not be saved. Please try again.");
       setAppId(applicationId);
       setSubmitted(true);
     } catch (err: any) {
+      await cleanupUploads(uploaded);
+      console.error("Application submission failed:", err);
       toast({ title: "Submission Failed", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
