@@ -1,0 +1,12 @@
+GRANT SELECT, INSERT, UPDATE ON public.applications TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.admission_tests TO authenticated;
+GRANT SELECT ON public.user_roles TO authenticated;
+GRANT SELECT ON public.form_settings TO anon;
+GRANT SELECT, INSERT, UPDATE ON public.form_settings TO authenticated;
+GRANT SELECT ON public.admin_setup TO anon, authenticated;
+GRANT ALL ON public.applications TO service_role;
+GRANT ALL ON public.admission_tests TO service_role;
+GRANT ALL ON public.user_roles TO service_role;
+GRANT ALL ON public.form_settings TO service_role;
+GRANT ALL ON public.id_sequences TO service_role;
+GRANT ALL ON public.admin_setup TO service_role;
