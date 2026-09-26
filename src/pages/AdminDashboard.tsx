@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList, Eye } from "lucide-react";
+import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList, Eye, BarChart3, Clock3, CheckCircle2, XCircle } from "lucide-react";
 import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import * as XLSX from "xlsx";
@@ -22,6 +22,7 @@ const AdminDashboard = () => {
   const [tests, setTests] = useState<any[]>([]);
   const [filteredClass, setFilteredClass] = useState("All");
   const [filteredSession, setFilteredSession] = useState("All");
+  const [filteredStatus, setFilteredStatus] = useState("All");
   const [search, setSearch] = useState("");
   const [editApp, setEditApp] = useState<any>(null);
   const [editTest, setEditTest] = useState<any>(null);
@@ -96,14 +97,16 @@ const AdminDashboard = () => {
     const classMatch = filteredClass === "All" || a.desired_class === filteredClass;
     const sessionMatch = filteredSession === "All" || a.session === filteredSession;
     const searchMatch = !search || a.full_name?.toLowerCase().includes(search.toLowerCase()) || a.application_id?.toLowerCase().includes(search.toLowerCase());
-    return classMatch && sessionMatch && searchMatch;
+    const statusMatch = filteredStatus === "All" || a.status === filteredStatus;
+    return classMatch && sessionMatch && statusMatch && searchMatch;
   });
 
   const filteredTests = tests.filter(t => {
     const classMatch = filteredClass === "All" || t.applying_for_class === filteredClass;
     const sessionMatch = filteredSession === "All" || t.session === filteredSession;
     const searchMatch = !search || t.student_name?.toLowerCase().includes(search.toLowerCase()) || t.test_id?.toLowerCase().includes(search.toLowerCase());
-    return classMatch && sessionMatch && searchMatch;
+    const statusMatch = filteredStatus === "All" || t.status === filteredStatus;
+    return classMatch && sessionMatch && statusMatch && searchMatch;
   });
 
   const exportAdmissions = (classFilter?: string) => {
@@ -215,9 +218,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-primary">
-            {filteredClass === "All" ? "All Applications" : filteredClass}
-          </h1>
+          <div><p className="text-sm font-medium text-primary">Admissions workspace</p><h1 className="text-2xl font-bold text-primary">{filteredClass === "All" ? "All applications" : filteredClass}</h1></div>
           <div className="flex gap-2 w-full sm:w-auto flex-wrap">
             <Select value={filteredSession} onValueChange={setFilteredSession}>
               <SelectTrigger className="w-32"><SelectValue placeholder="Session" /></SelectTrigger>
@@ -226,12 +227,24 @@ const AdminDashboard = () => {
                 {SESSION_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={filteredStatus} onValueChange={setFilteredStatus}>
+              <SelectTrigger className="w-32"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent><SelectItem value="All">All statuses</SelectItem><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Approved">Approved</SelectItem><SelectItem value="Rejected">Rejected</SelectItem></SelectContent>
+            </Select>
             <div className="relative flex-1 sm:flex-initial">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-full sm:w-56" />
             </div>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <DashboardStat icon={BarChart3} label="Total applications" value={applications.length} />
+          <DashboardStat icon={Clock3} label="Pending review" value={applications.filter(a => a.status === "Pending").length} tone="amber" />
+          <DashboardStat icon={CheckCircle2} label="Approved" value={applications.filter(a => a.status === "Approved").length} tone="green" />
+          <DashboardStat icon={XCircle} label="Rejected" value={applications.filter(a => a.status === "Rejected").length} tone="red" />
+        </div>
+        <div className="mb-6 rounded-xl border bg-card p-4"><div className="flex items-center justify-between gap-3"><div><h2 className="font-semibold">Application pipeline</h2><p className="text-sm text-muted-foreground">Use the status filter or update an application directly from the list below.</p></div><span className="text-sm text-muted-foreground">{filteredApps.length} matching</span></div><div className="mt-4 grid grid-cols-3 gap-2">{(["Pending", "Approved", "Rejected"] as const).map(status => <button key={status} onClick={() => setFilteredStatus(filteredStatus === status ? "All" : status)} className={`rounded-lg border p-3 text-left transition-colors ${filteredStatus === status ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}><p className="text-xs text-muted-foreground">{status}</p><p className="mt-1 text-xl font-bold">{applications.filter(a => a.status === status).length}</p></button>)}</div></div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList>
@@ -464,5 +477,13 @@ const AdminDashboard = () => {
     </div>
   );
 };
+
+const DashboardStat = ({ icon: Icon, label, value, tone = "primary" }: { icon: typeof BarChart3; label: string; value: number; tone?: "primary" | "amber" | "green" | "red" }) => (
+  <div className="rounded-xl border bg-card p-4 shadow-sm">
+    <Icon className={`h-5 w-5 ${tone === "amber" ? "text-amber-600" : tone === "green" ? "text-green-600" : tone === "red" ? "text-red-600" : "text-primary"}`} />
+    <p className="mt-3 text-2xl font-bold">{value}</p>
+    <p className="text-xs text-muted-foreground">{label}</p>
+  </div>
+);
 
 export default AdminDashboard;
