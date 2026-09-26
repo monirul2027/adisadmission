@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarIcon, CheckCircle2, Upload, ArrowLeft } from "lucide-react";
+import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -222,13 +222,14 @@ const NewAdmissionForm = () => {
           <CardContent className="space-y-4">
             <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
             <h2 className="text-2xl font-bold text-primary">Application Submitted!</h2>
-            <p className="text-muted-foreground">Your application has been successfully submitted.</p>
+            <p className="text-muted-foreground">Your application has been securely submitted for review.</p>
             <div className="bg-secondary rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Application ID</p>
               <p className="text-2xl font-bold text-primary tracking-wider">{appId}</p>
             </div>
+            <div className="rounded-lg border bg-background p-3 text-left text-sm"><p className="flex items-center gap-2 font-medium text-primary"><FileCheck2 className="h-4 w-4" /> What happens next</p><p className="mt-1 text-muted-foreground">The school will review your details. You can check the application timeline and print your form from your dashboard.</p></div>
             <p className="text-sm text-muted-foreground">Please save this ID for future reference.</p>
-            <Button onClick={() => navigate(backPath)}>Go to Dashboard</Button>
+            <Button className="w-full" onClick={() => navigate(backPath)}>Go to Dashboard</Button>
           </CardContent>
         </Card>
       </div>
@@ -253,6 +254,13 @@ const NewAdmissionForm = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+        <div className="rounded-xl border bg-white p-4 shadow-sm">
+          <p className="text-sm font-semibold text-primary">Application progress</p>
+          <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
+            {["Choose session", "Your details", "Documents", "Submit"].map((step, index) => <div key={step} className="space-y-1"><span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full font-bold ${index === 0 ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>{index + 1}</span><span className={index === 0 ? "font-medium text-primary" : "text-muted-foreground"}>{step}</span></div>)}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Fields marked with * are required. Your documents are stored in the existing private school storage.</p>
+        </div>
         {/* Session Selection */}
         <SectionCard title="Session" required>
           <SelectField label="Academic Session" value={session} onValueChange={setSession} options={SESSION_OPTIONS} required />
@@ -389,7 +397,8 @@ const NewAdmissionForm = () => {
         </SectionCard>
 
         {/* Document Uploads */}
-        <SectionCard title="Document Uploads (Optional)">
+        <SectionCard title="Supporting Documents">
+          <p className="mb-4 text-sm text-muted-foreground">Upload clear, readable copies where available. Files remain private and are only used for your admission review.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Aadhar Card (Max 50 KB)</Label>

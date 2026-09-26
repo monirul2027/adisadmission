@@ -96,14 +96,14 @@ const PrintAdmitCard = () => {
         </Button>
       </div>
 
-      <div id="admit-card-content" className="print-page w-[210mm] mx-auto p-[15mm] text-[12px] font-sans relative">
+      <div id="admit-card-content" className="print-page w-[210mm] mx-auto p-[15mm] text-[12px] font-sans relative bg-white">
         {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06] print:opacity-[0.06]" aria-hidden="true">
           <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="" className="w-[180mm] h-[180mm] object-contain" />
         </div>
 
         {/* Header */}
-        <div className="text-center border-2 border-black p-4 mb-0 relative z-10">
+        <div className="text-center border-2 border-primary p-4 mb-0 relative z-10">
           <div className="flex items-center justify-center gap-3 mb-2">
             <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="Logo" className="h-16 w-16 rounded-full" />
             <div>
@@ -112,13 +112,14 @@ const PrintAdmitCard = () => {
               <p className="text-[10px]">Mob: 9933624600 / 8016238853 / 78725 96349 / 7586985349</p>
             </div>
           </div>
-          <div className="bg-black text-white py-1 px-4 inline-block font-bold text-lg tracking-wider">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Admission test · {test.session}</p>
+          <div className="bg-primary text-white py-1 px-4 inline-block font-bold text-lg tracking-wider">
             ADMIT CARD
           </div>
         </div>
 
         {/* Card Body */}
-        <div className="border-2 border-black border-t-0 p-4 relative z-10">
+        <div className="border-2 border-primary border-t-0 p-4 relative z-10">
           <table className="w-full border-collapse mb-4">
             <tbody>
               {[
@@ -147,6 +148,10 @@ const PrintAdmitCard = () => {
               <p className="whitespace-pre-line text-[11px] leading-relaxed">{instructions}</p>
             </div>
           )}
+
+          <div className="rounded border border-primary/30 bg-primary/5 px-3 py-2 text-[10px] text-primary">
+            Please carry this admit card and arrive at the examination venue before the reporting time announced by the school.
+          </div>
 
           {/* Signatures - Both Exam Controller and Head Teacher on Admit Card */}
           <div className="flex justify-between mt-12 pt-4">
