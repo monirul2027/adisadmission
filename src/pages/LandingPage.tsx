@@ -1,83 +1,32 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { GraduationCap, ShieldCheck } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck, FileText, GraduationCap, HeartHandshake, HelpCircle, MapPin, Phone, ShieldCheck, Users } from "lucide-react";
+
+const schoolAddress = "Dakshin Krishnanagar, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202";
 
 const LandingPage = () => {
   const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
-      {/* Header */}
-      <header className="bg-primary text-primary-foreground py-8">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <img
-            alt="Alor Disha Islamic School"
-            className="mx-auto h-24 w-24 rounded-full bg-white p-1 mb-4 shadow-lg"
-            src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg"
-          />
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Alor Disha Islamic School</h1>
-          <p className="text-sm opacity-90 mt-2 max-w-lg mx-auto">
-            Dakshin Krishnanagar, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202
-          </p>
-          <div className="mt-4 inline-block bg-accent text-accent-foreground px-6 py-2 rounded-full text-sm font-semibold shadow">
-            Online Admission Portal
-          </div>
-        </div>
-      </header>
-
-      {/* Portal Selection */}
-      <main className="flex-1 flex items-center justify-center p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl w-full">
-          <Card
-            className="group cursor-pointer border-2 border-transparent hover:border-primary transition-all duration-300 hover:shadow-xl"
-            onClick={() => navigate("/student/login")}
-          >
-            <CardHeader className="text-center pb-2">
-              <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                <GraduationCap className="h-8 w-8 text-primary" />
-              </div>
-              <CardTitle className="text-xl text-primary">Student Panel</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <p className="text-muted-foreground text-sm mb-4">
-                Apply for New Admission or Admission Test. Track your application status and print forms.
-              </p>
-              <Button className="w-full" size="lg">
-                Enter Student Portal
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="group cursor-pointer border-2 border-transparent hover:border-primary transition-all duration-300 hover:shadow-xl"
-            onClick={() => navigate("/admin/login")}
-          >
-            <CardHeader className="text-center pb-2">
-              <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                <ShieldCheck className="h-8 w-8 text-primary" />
-              </div>
-              <CardTitle className="text-xl text-primary">Admin Panel</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-              <p className="text-muted-foreground text-sm mb-4">
-                Manage admissions, approve applications, configure forms, and export data.
-              </p>
-              <Button className="w-full" size="lg" variant="outline">
-                Enter Admin Portal
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-muted py-4 text-center text-xs text-muted-foreground">
-        <p>© {new Date().getFullYear()} Alor Disha Islamic School. All rights reserved.</p>
-      </footer>
-    </div>
-  );
+  const startApplication = () => navigate("/student/login");
+  return <div className="min-h-screen bg-[#f7faf8] text-foreground">
+    <header className="sticky top-0 z-20 border-b bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <button className="flex items-center gap-3 text-left" onClick={() => navigate("/")}><img alt="Alor Disha Islamic School" className="h-11 w-11 rounded-full border-2 border-primary/15 object-cover" src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" /><span><span className="block font-bold text-primary">Alor Disha Islamic School</span><span className="hidden text-xs text-muted-foreground sm:block">Admissions Portal</span></span></button>
+      <div className="flex items-center gap-2"><Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => document.getElementById("admission-info")?.scrollIntoView({ behavior: "smooth" })}>Admission info</Button><Button size="sm" onClick={startApplication}>Apply now <ArrowRight className="ml-1 h-4 w-4" /></Button></div>
+    </div></header>
+    <main>
+      <section className="overflow-hidden bg-primary text-primary-foreground"><div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 md:grid-cols-[1.3fr_.7fr] md:py-20"><div className="max-w-2xl">
+        <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold"><span className="h-2 w-2 rounded-full bg-accent" /> Admissions open for the new session</p><h1 className="text-4xl font-bold leading-tight sm:text-5xl">A confident start for every child.</h1><p className="mt-5 max-w-xl text-base leading-7 text-white/85 sm:text-lg">Begin your child’s admission journey with a simple, guided online application. Save your progress, upload documents securely, and track every step from one place.</p>
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row"><Button size="lg" variant="secondary" className="font-semibold" onClick={startApplication}>Apply for admission <ArrowRight className="ml-2 h-4 w-4" /></Button><Button size="lg" variant="outline" className="border-white/50 bg-transparent text-white hover:bg-white/10 hover:text-white" onClick={() => navigate("/student/login")}>Check application status</Button></div><p className="mt-5 flex items-center gap-2 text-sm text-white/75"><MapPin className="h-4 w-4" /> {schoolAddress}</p>
+      </div><Card className="border-0 bg-white text-foreground shadow-2xl"><CardContent className="p-6"><p className="text-sm font-semibold text-primary">Your admission journey</p><ol className="mt-4 space-y-4">{["Create your student account", "Complete the application form", "Upload supporting documents", "Submit and keep your application ID"].map((step, index) => <li key={step} className="flex gap-3 text-sm"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">{index + 1}</span><span className="pt-1 font-medium">{step}</span></li>)}</ol><Button className="mt-6 w-full" onClick={startApplication}>Start application</Button></CardContent></Card></div></section>
+      <section className="mx-auto grid max-w-6xl gap-4 px-4 py-8 sm:grid-cols-3 sm:px-6">{[{ icon: FileText, title: "Simple online application", copy: "A clear form with secure document uploads." }, { icon: ClipboardCheck, title: "Track your application", copy: "See the latest status after you sign in." }, { icon: HeartHandshake, title: "Help when you need it", copy: "Our admissions team is ready to assist." }].map(({ icon: Icon, title, copy }) => <div className="flex gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-black/5" key={title}><span className="rounded-lg bg-primary/10 p-2 text-primary"><Icon className="h-5 w-5" /></span><div><h2 className="font-semibold">{title}</h2><p className="mt-1 text-sm text-muted-foreground">{copy}</p></div></div>)}</section>
+      <section id="admission-info" className="mx-auto max-w-6xl px-4 py-12 sm:px-6"><div className="max-w-2xl"><p className="text-sm font-bold uppercase tracking-wider text-primary">Admission information</p><h2 className="mt-2 text-3xl font-bold">Everything parents need before applying.</h2><p className="mt-3 text-muted-foreground">Please keep the following items ready. You can submit your application online and return to your dashboard to view its progress.</p></div><div className="mt-8 grid gap-5 md:grid-cols-3"><InfoCard icon={CalendarDays} title="Important dates" items={["Applications are currently being accepted", "Submit early to avoid last-minute delays", "Admission test details will appear in your dashboard"]} /><InfoCard icon={FileText} title="Documents to prepare" items={["Passport-size student photograph", "Aadhaar card (if available)", "Birth certificate and guardian signature"]} /><InfoCard icon={GraduationCap} title="What happens next" items={["Receive your application ID on submission", "The school reviews your details", "Check status and test updates online"]} /></div></section>
+      <section className="bg-white py-12"><div className="mx-auto max-w-6xl px-4 sm:px-6"><div className="text-center"><p className="text-sm font-bold uppercase tracking-wider text-primary">Why families choose us</p><h2 className="mt-2 text-3xl font-bold">Learning, character and care.</h2></div><div className="mt-8 grid gap-5 sm:grid-cols-3">{[{ icon: Users, title: "Supportive community", copy: "A welcoming environment for students and families." }, { icon: ShieldCheck, title: "Transparent process", copy: "Clear steps and application updates in your own dashboard." }, { icon: CheckCircle2, title: "Values-led learning", copy: "A strong foundation for growth in and beyond the classroom." }].map(({ icon: Icon, title, copy }) => <Card key={title} className="border-none bg-[#f7faf8]"><CardContent className="p-6"><Icon className="h-8 w-8 text-primary" /><h3 className="mt-4 font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{copy}</p></CardContent></Card>)}</div></div></section>
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6"><div className="flex flex-col justify-between gap-6 rounded-2xl bg-accent p-7 text-accent-foreground md:flex-row md:items-center"><div><p className="text-sm font-semibold">Need help with your application?</p><h2 className="mt-1 text-2xl font-bold">We’re here to help every step of the way.</h2><p className="mt-2 flex items-center gap-2 text-sm"><Phone className="h-4 w-4" /> Contact the school admissions office for assistance.</p></div><Button className="bg-primary text-white hover:bg-primary/90" onClick={startApplication}><HelpCircle className="mr-2 h-4 w-4" /> Get started</Button></div></section>
+    </main>
+    <footer className="bg-primary py-8 text-primary-foreground"><div className="mx-auto flex max-w-6xl flex-col justify-between gap-4 px-4 text-sm sm:px-6 md:flex-row"><div><p className="font-bold">Alor Disha Islamic School</p><p className="mt-1 text-white/70">{schoolAddress}</p></div><div className="text-white/70"><button className="hover:text-white" onClick={() => navigate("/admin/login")}>Staff login</button><p className="mt-2">© {new Date().getFullYear()} Alor Disha Islamic School.</p></div></div></footer>
+  </div>;
 };
+
+const InfoCard = ({ icon: Icon, title, items }: { icon: typeof CalendarDays; title: string; items: string[] }) => <Card className="h-full"><CardContent className="p-6"><Icon className="h-7 w-7 text-primary" /><h3 className="mt-4 font-bold">{title}</h3><ul className="mt-3 space-y-2 text-sm leading-5 text-muted-foreground">{items.map(item => <li className="flex gap-2" key={item}><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{item}</li>)}</ul></CardContent></Card>;
 
 export default LandingPage;
