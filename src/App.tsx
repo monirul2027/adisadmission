@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import StudentLogin from "./pages/StudentLogin";
 import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminResetPassword from "./pages/AdminResetPassword";
 import AdminSetup from "./pages/AdminSetup";
 import StudentDashboard from "./pages/StudentDashboard";
 import NewAdmissionForm from "./pages/NewAdmissionForm";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/student/admission-test" element={<AdmissionTestForm />} />
           {/* Admin routes */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin/reset-password" element={<AdminResetPassword />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/settings" element={<FormSettings />} />
           <Route path="/admin-setup" element={<AdminSetup />} />

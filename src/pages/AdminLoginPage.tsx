@@ -12,6 +12,7 @@ const AdminLoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -40,6 +41,24 @@ const AdminLoginPage = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      toast({ title: "Email required", description: "Enter your Admin Email first.", variant: "destructive" });
+      return;
+    }
+    setResetting(true);
+    const { data, error } = await supabase.functions.invoke("admin-password-reset", {
+      body: { email: normalizedEmail, redirectTo: `${window.location.origin}/admin/reset-password` },
+    });
+    setResetting(false);
+    if (error || data?.error) {
+      toast({ title: "Email not registered", description: data?.error || "Wrong email", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Check your email", description: "A password reset link was sent to the registered Admin Email." });
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary p-4">
       <Card className="w-full max-w-sm">
@@ -62,6 +81,9 @@ const AdminLoginPage = () => {
               <ShieldCheck className="mr-2 h-4 w-4" />
               {loading ? "Verifying..." : "Sign In"}
             </Button>
+            <button type="button" className="w-full text-sm text-primary underline underline-offset-4 disabled:opacity-50" onClick={handleForgotPassword} disabled={resetting}>
+              {resetting ? "Checking email..." : "Forgot Password?"}
+            </button>
           </form>
         </CardContent>
       </Card>
