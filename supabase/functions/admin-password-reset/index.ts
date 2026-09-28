@@ -41,7 +41,16 @@ Deno.serve(async (req) => {
     if (!role) return json({ error: "Email not registered" }, 403);
 
     const client = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const safeRedirect = typeof redirectTo === "string" && redirectTo.startsWith("https://")
+    const isAllowedRedirect = (value: string) => {
+      try {
+        const parsed = new URL(value);
+        if (parsed.protocol === "https:") return true;
+        return parsed.protocol === "http:" && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
+      } catch {
+        return false;
+      }
+    };
+    const safeRedirect = typeof redirectTo === "string" && isAllowedRedirect(redirectTo)
       ? redirectTo
       : undefined;
     const { error: resetError } = await client.auth.resetPasswordForEmail(normalizedEmail, {
