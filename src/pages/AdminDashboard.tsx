@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -197,6 +198,9 @@ const AdminDashboard = () => {
           </Button>
           <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => navigate("/student/admission-test")}>
             <ClipboardList className="mr-2 h-4 w-4" /> New Test
+          </Button>
+          <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => navigate("/admin/site-editor")}>
+            <Settings className="mr-2 h-4 w-4" /> Site Content Editor
           </Button>
           <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => navigate("/admin/settings")}>
             <Settings className="mr-2 h-4 w-4" /> Form Settings
@@ -434,6 +438,10 @@ const AdminDashboard = () => {
                     <Input value={editApp.admission_fee || ""} onChange={e => setEditApp({ ...editApp, admission_fee: e.target.value })} />
                   </div>
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Public status remark</Label>
+                  <Textarea value={editApp.remarks || ""} onChange={e => setEditApp({ ...editApp, remarks: e.target.value })} placeholder="Shown in Quick Application Tracker for needs-action or rejected applications." />
+                </div>
                 <Button onClick={saveEditApp} className="w-full">Save Changes</Button>
               </div>
             </>
@@ -467,6 +475,10 @@ const AdminDashboard = () => {
                     <Label className="text-xs">Village</Label>
                     <Input value={editTest.village || ""} onChange={e => setEditTest({ ...editTest, village: e.target.value })} />
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Public status remark</Label>
+                  <Textarea value={editTest.remarks || ""} onChange={e => setEditTest({ ...editTest, remarks: e.target.value })} placeholder="Shown in Quick Application Tracker for needs-action or rejected tests." />
                 </div>
                 <Button onClick={saveEditTest} className="w-full">Save Changes</Button>
               </div>

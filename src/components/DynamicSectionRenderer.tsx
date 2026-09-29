@@ -1,0 +1,18 @@
+import { BellRing, CheckCircle2, HelpCircle, Sparkles } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+
+type Section = { id: string; title: string; subtitle: string | null; section_type: string; content: unknown };
+const contentOf = (value: unknown) => (value && typeof value === "object" ? value as Record<string, any> : {});
+
+export default function DynamicSectionRenderer({ sections }: { sections: Section[] }) {
+  return <>{sections.map((section) => {
+    const content = contentOf(section.content);
+    if (section.section_type === "announcement") return <section key={section.id} className="mx-auto max-w-6xl px-4 py-5 sm:px-6"><div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950"><div className="flex gap-3"><BellRing className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="text-xs font-bold uppercase tracking-wider">{content.tag || "Announcement"}{content.date ? ` · ${content.date}` : ""}</p><h2 className="mt-1 text-lg font-bold">{section.title}</h2><p className="mt-1 text-sm leading-6">{content.message || section.subtitle}</p></div></div></div></section>;
+    if (section.section_type === "age_criteria") return <section key={section.id} className="bg-white py-12"><div className="mx-auto max-w-6xl px-4 sm:px-6"><SectionHeading title={section.title} subtitle={section.subtitle} /><div className="mt-6 overflow-hidden rounded-xl border"><table className="w-full text-left text-sm"><thead className="bg-primary text-primary-foreground"><tr><th className="p-4">Class</th><th className="p-4">Minimum age</th><th className="p-4">Maximum age</th></tr></thead><tbody>{(content.rows || []).map((row: any, index: number) => <tr className="border-t" key={`${row.class_name}-${index}`}><td className="p-4 font-medium">{row.class_name}</td><td className="p-4">{row.minimum_age}</td><td className="p-4">{row.maximum_age}</td></tr>)}</tbody></table></div></div></section>;
+    if (section.section_type === "faq") return <section key={section.id} className="mx-auto max-w-6xl px-4 py-12 sm:px-6"><SectionHeading title={section.title} subtitle={section.subtitle} /><div className="mt-6 grid gap-4 md:grid-cols-2">{(content.items || []).map((item: any, index: number) => <Card key={`${item.question}-${index}`}><CardContent className="p-5"><HelpCircle className="h-5 w-5 text-primary" /><h3 className="mt-3 font-bold">{item.question}</h3><p className="mt-2 text-sm text-muted-foreground">{item.answer}</p></CardContent></Card>)}</div></section>;
+    const items = content.items || [];
+    return <section key={section.id} className="py-12 even:bg-white"><div className="mx-auto max-w-6xl px-4 sm:px-6"><SectionHeading title={section.title} subtitle={section.subtitle} /><div className="mt-7 grid gap-5 md:grid-cols-3">{items.map((item: any, index: number) => <Card key={`${item.title}-${index}`} className="border-primary/10"><CardContent className="p-6"><Sparkles className="h-7 w-7 text-primary" /><h3 className="mt-4 font-bold">{item.title}</h3>{item.subtitle && <p className="mt-1 text-sm font-medium text-primary">{item.subtitle}</p>}<p className="mt-2 text-sm leading-6 text-muted-foreground">{item.description}</p>{item.bullets?.length > 0 && <ul className="mt-3 space-y-2 text-sm">{item.bullets.map((bullet: string) => <li className="flex gap-2" key={bullet}><CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />{bullet}</li>)}</ul>}</CardContent></Card>)}</div></div></section>;
+  })}</>;
+}
+
+const SectionHeading = ({ title, subtitle }: { title: string; subtitle: string | null }) => <div className="max-w-2xl"><h2 className="text-3xl font-bold">{title}</h2>{subtitle && <p className="mt-3 text-muted-foreground">{subtitle}</p>}</div>;

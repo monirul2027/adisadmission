@@ -46,6 +46,7 @@ export type Database = {
           present_class: string | null
           present_school: string | null
           ps: string | null
+          remarks: string | null
           roll_no: string | null
           session: string
           state: string | null
@@ -70,6 +71,7 @@ export type Database = {
           present_class?: string | null
           present_school?: string | null
           ps?: string | null
+          remarks?: string | null
           roll_no?: string | null
           session: string
           state?: string | null
@@ -94,6 +96,7 @@ export type Database = {
           present_class?: string | null
           present_school?: string | null
           ps?: string | null
+          remarks?: string | null
           roll_no?: string | null
           session?: string
           state?: string | null
@@ -151,6 +154,7 @@ export type Database = {
           present_state: string | null
           present_vill: string | null
           religion: string
+          remarks: string | null
           session: string | null
           sex: string
           status: string
@@ -200,6 +204,7 @@ export type Database = {
           present_state?: string | null
           present_vill?: string | null
           religion: string
+          remarks?: string | null
           session?: string | null
           sex: string
           status?: string
@@ -249,6 +254,7 @@ export type Database = {
           present_state?: string | null
           present_vill?: string | null
           religion?: string
+          remarks?: string | null
           session?: string | null
           sex?: string
           status?: string
@@ -305,6 +311,63 @@ export type Database = {
         }
         Relationships: []
       }
+      site_sections: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          order_index: number
+          section_type: string
+          subtitle: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          order_index?: number
+          section_type: string
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          order_index?: number
+          section_type?: string
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -331,6 +394,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_application_quick_status: {
+        Args: { p_app_id: string; p_phone: string }
+        Returns: {
+          applying_for_class: string
+          found: boolean
+          has_admit_card: boolean
+          remarks: string
+          session: string
+          status: string
+          student_name: string
+        }[]
+      }
       generate_next_id: {
         Args: { p_class?: string; p_session: string; p_type: string }
         Returns: string

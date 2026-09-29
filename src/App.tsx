@@ -13,6 +13,7 @@ import NewAdmissionForm from "./pages/NewAdmissionForm";
 import AdmissionTestForm from "./pages/AdmissionTestForm";
 import AdminDashboard from "./pages/AdminDashboard";
 import FormSettings from "./pages/FormSettings";
+import SiteEditor from "./pages/SiteEditor";
 import PrintAdmission from "./pages/PrintAdmission";
 import PrintAdmissionTest from "./pages/PrintAdmissionTest";
 import PrintAdmitCard from "./pages/PrintAdmitCard";
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/admin/reset-password" element={<AdminResetPassword />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/settings" element={<FormSettings />} />
+          <Route path="/admin/site-editor" element={<SiteEditor />} />
           <Route path="/admin-setup" element={<AdminSetup />} />
           {/* Print routes */}
           <Route path="/print/admission/:id" element={<PrintAdmission />} />
