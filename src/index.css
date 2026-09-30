@@ -92,8 +92,8 @@
 /* Print styles for A4 form */
 @media print {
   @page {
-    size: A4;
-    margin: 0;
+    size: A4 portrait;
+    margin: 10mm;
   }
 
   body {
@@ -120,7 +120,17 @@
 
   .print-page {
     page-break-after: always;
+    break-after: page;
     page-break-inside: avoid;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+  }
+
+  .print-document-img {
+    width: 100% !important;
+    max-height: 90vh !important;
+    object-fit: contain !important;
   }
 
   .print-page:last-child {

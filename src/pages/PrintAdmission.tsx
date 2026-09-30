@@ -97,7 +97,7 @@ const PrintAdmission = () => {
       </div>
 
       <div id="print-content">
-        <div className="print-page w-[210mm] min-h-[297mm] max-h-[297mm] mx-auto p-[12mm] text-[11px] leading-tight font-sans overflow-hidden box-border">
+        <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] text-[11px] leading-tight font-sans box-border">
           <div className="text-center border-b-2 border-black pb-2 mb-3">
             <div className="flex items-center justify-center gap-3">
               <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="Logo" className="h-14 w-14 rounded-full" />
@@ -178,21 +178,21 @@ const PrintAdmission = () => {
         </div>
 
         {signedUrls.aadhar && (
-          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
-            <h2 className="text-base font-bold mb-4 text-center">Aadhar Card — {app.full_name}</h2>
-            <img src={signedUrls.aadhar} alt="Aadhar Card" className="max-w-full max-h-[250mm] object-contain" />
+          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] flex flex-col box-border" style={{ pageBreakBefore: "always" }}>
+            <h2 className="text-sm font-bold text-center border-b pb-2 mb-3">Aadhar Card — {app.full_name}</h2>
+            <div className="flex-1 w-full flex items-center justify-center"><img src={signedUrls.aadhar} alt="Aadhar Card" className="print-document-img w-full h-auto max-h-[260mm] object-contain mx-auto block" /></div>
           </div>
         )}
         {signedUrls.birth && (
-          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
-            <h2 className="text-base font-bold mb-4 text-center">Birth Certificate — {app.full_name}</h2>
-            <img src={signedUrls.birth} alt="Birth Certificate" className="max-w-full max-h-[250mm] object-contain" />
+          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] flex flex-col box-border" style={{ pageBreakBefore: "always" }}>
+            <h2 className="text-sm font-bold text-center border-b pb-2 mb-3">Birth Certificate — {app.full_name}</h2>
+            <div className="flex-1 w-full flex items-center justify-center"><img src={signedUrls.birth} alt="Birth Certificate" className="print-document-img w-full h-auto max-h-[260mm] object-contain mx-auto block" /></div>
           </div>
         )}
         {signedUrls.signature && (
-          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[15mm] flex flex-col items-center" style={{ pageBreakBefore: "always" }}>
-            <h2 className="text-base font-bold mb-4 text-center">Guardian Signature — {app.full_name}</h2>
-            <img src={signedUrls.signature} alt="Guardian Signature" className="max-w-full max-h-[250mm] object-contain" />
+          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] flex flex-col box-border" style={{ pageBreakBefore: "always" }}>
+            <h2 className="text-sm font-bold text-center border-b pb-2 mb-3">Guardian Signature — {app.full_name}</h2>
+            <div className="flex-1 w-full flex items-center justify-center"><img src={signedUrls.signature} alt="Guardian Signature" className="print-document-img w-full h-auto max-h-[260mm] object-contain mx-auto block" /></div>
           </div>
         )}
       </div>

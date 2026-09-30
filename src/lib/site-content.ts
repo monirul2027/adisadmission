@@ -1,4 +1,13 @@
 export type SiteValue = Record<string, unknown>;
+export interface ContentCard {
+  id: string;
+  title: string;
+  description?: string;
+  items?: string[];
+  image_url?: string;
+  document_url?: string;
+  document_label?: string;
+}
 
 export const siteDefaults = {
   hero_content: {
@@ -34,18 +43,18 @@ export const siteDefaults = {
     title: "Everything parents need before applying.",
     subtitle: "Please keep the following items ready. You can submit your application online and return to your dashboard to view its progress.",
     cards: [
-      { title: "Important dates", items: ["Applications are currently being accepted", "Submit early to avoid last-minute delays", "Admission test details will appear in your dashboard"] },
-      { title: "Documents to prepare", items: ["Passport-size student photograph", "Aadhaar card (if available)", "Birth certificate and guardian signature"] },
-      { title: "What happens next", items: ["Receive your application ID on submission", "The school reviews your details", "Check status and test updates online"] },
+      { id: "important-dates", title: "Important dates", items: ["Applications are currently being accepted", "Submit early to avoid last-minute delays", "Admission test details will appear in your dashboard"] },
+      { id: "documents", title: "Documents to prepare", items: ["Passport-size student photograph", "Aadhaar card (if available)", "Birth certificate and guardian signature"] },
+      { id: "next-steps", title: "What happens next", items: ["Receive your application ID on submission", "The school reviews your details", "Check status and test updates online"] },
     ],
   },
   features_content: {
     eyebrow: "Why families choose us",
     title: "Learning, character and care.",
     cards: [
-      { title: "Supportive community", description: "A welcoming environment for students and families." },
-      { title: "Transparent process", description: "Clear steps and application updates in your own dashboard." },
-      { title: "Values-led learning", description: "A strong foundation for growth in and beyond the classroom." },
+      { id: "community", title: "Supportive community", description: "A welcoming environment for students and families." },
+      { id: "transparent", title: "Transparent process", description: "Clear steps and application updates in your own dashboard." },
+      { id: "values", title: "Values-led learning", description: "A strong foundation for growth in and beyond the classroom." },
     ],
   },
 };
@@ -59,6 +68,10 @@ export function mergeSiteSettings(rows: { key: string; value: unknown }[] | null
       const key = row.key as keyof SiteSettings;
       values[key] = { ...siteDefaults[key], ...(row.value as object) } as SiteSettings[typeof key];
     }
+  });
+  (['admission_info_content', 'features_content'] as const).forEach((key) => {
+    const cards = values[key].cards;
+    values[key] = { ...values[key], cards: cards.map((card, index) => ({ ...card, id: card.id || `${key}-${index + 1}` })) } as SiteSettings[typeof key];
   });
   return values;
 }

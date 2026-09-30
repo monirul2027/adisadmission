@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Upload, Trash2, Home } from "lucide-react";
 import { checkUserRole, uploadFile, validateFileSize, MAX_DOC_SIZE } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 
@@ -114,7 +114,7 @@ const FormSettings = () => {
           <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-white/10" onClick={() => navigate("/admin/dashboard")}>
             <ArrowLeft className="mr-1 h-4 w-4" /> Back
           </Button>
-          <h1 className="text-lg font-bold">Form Settings</h1>
+          <h1 className="text-lg font-bold">Form Settings</h1><Button variant="ghost" size="sm" className="ml-auto hover:bg-white/10" onClick={() => navigate("/")}><Home className="mr-1 h-4 w-4" /> View Website</Button>
         </div>
       </header>
 

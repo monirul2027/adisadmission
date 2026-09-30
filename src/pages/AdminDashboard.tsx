@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList, Eye, BarChart3, Clock3, CheckCircle2, XCircle } from "lucide-react";
+import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList, Eye, BarChart3, Clock3, CheckCircle2, XCircle, Home } from "lucide-react";
 import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import * as XLSX from "xlsx";
@@ -180,6 +180,7 @@ const AdminDashboard = () => {
           <img src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" alt="Logo" className="mx-auto h-12 w-12 rounded-full bg-white p-0.5 mb-2" />
           <h2 className="font-bold text-sm">Admin Dashboard</h2>
           <p className="text-xs opacity-75">Alor Disha Islamic School</p>
+          <Button variant="ghost" size="sm" className="mt-2 w-full text-sidebar-foreground hover:bg-sidebar-accent" onClick={() => navigate("/")}><Home className="mr-2 h-4 w-4" /> View Website</Button>
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto text-sm">
           {ALL_CLASSES.map(cls => (

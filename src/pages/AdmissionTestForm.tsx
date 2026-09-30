@@ -5,10 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, ArrowLeft, Upload } from "lucide-react";
+import { CheckCircle2, ArrowLeft, Upload, ImagePlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, uploadFile, validateFileSize, MAX_PHOTO_SIZE } from "@/lib/supabase-helpers";
+import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, uploadFile } from "@/lib/supabase-helpers";
+import { compressImage } from "@/lib/image-compressor";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionTestSchema } from "@/lib/form-validation";
@@ -24,6 +25,7 @@ const AdmissionTestForm = () => {
   const [session, setSession] = useState("");
   const [applyingClass, setApplyingClass] = useState("");
   const [studentSig, setStudentSig] = useState<File | null>(null);
+  const [optimizingSignature, setOptimizingSignature] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -205,15 +207,16 @@ const AdmissionTestForm = () => {
 
         <SectionCard title="Student Signature (Optional)">
           <div className="space-y-2">
-            <Label>Upload Student Signature (Max 30 KB)</Label>
-            <Input type="file" accept="image/*" onChange={(e) => {
+            <Label>Student Signature</Label>
+            <Label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Upload from Gallery / Files<Input type="file" accept="image/jpeg,image/png,image/webp,image/*" className="sr-only" onChange={async (e) => {
               const file = e.target.files?.[0];
               if (file) {
-                const err = validateFileSize(file, MAX_PHOTO_SIZE, "Student Signature");
-                if (err) { toast({ title: "File too large", description: err, variant: "destructive" }); e.target.value = ""; return; }
-                setStudentSig(file);
+                try { setOptimizingSignature(true); setStudentSig(await compressImage(file, { maxSizeBytes: 250 * 1024, maxWidthOrHeight: 600 })); }
+                catch (error) { toast({ title: "Could not optimize signature", description: error instanceof Error ? error.message : "Please choose another image.", variant: "destructive" }); }
+                finally { setOptimizingSignature(false); }
               }
-            }} />
+            }} /></Label>
+            <p className="text-xs text-muted-foreground">{optimizingSignature ? <span className="inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing image...</span> : "Large images are automatically optimized before upload."}</p>
           </div>
         </SectionCard>
 

@@ -8,11 +8,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2 } from "lucide-react";
+import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, ImagePlus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, MAX_PHOTO_SIZE, MAX_DOC_SIZE, validateFileSize, checkUserRole } from "@/lib/supabase-helpers";
+import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole } from "@/lib/supabase-helpers";
+import { compressImage } from "@/lib/image-compressor";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionFormSchema } from "@/lib/form-validation";
@@ -36,6 +37,7 @@ const NewAdmissionForm = () => {
   const [desiredClass, setDesiredClass] = useState("");
   const [sex, setSex] = useState("");
   const [religion, setReligion] = useState("");
+  const [optimizing, setOptimizing] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -48,22 +50,27 @@ const NewAdmissionForm = () => {
     checkAuth();
   }, [navigate]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const err = validateFileSize(file, MAX_PHOTO_SIZE, "Photo");
-      if (err) { toast({ title: "File too large", description: err, variant: "destructive" }); return; }
-      setPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
+      try {
+        setOptimizing("photo");
+        const optimized = await compressImage(file, { maxSizeBytes: 250 * 1024, maxWidthOrHeight: 600 });
+        setPhoto(optimized);
+        setPhotoPreview(URL.createObjectURL(optimized));
+      } catch (error) { toast({ title: "Could not optimize photo", description: error instanceof Error ? error.message : "Please choose another image.", variant: "destructive" }); }
+      finally { setOptimizing(null); }
     }
   };
 
-  const handleDocChange = (setter: (f: File | null) => void, label: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDocChange = (setter: (f: File | null) => void, label: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const err = validateFileSize(file, MAX_DOC_SIZE, label);
-      if (err) { toast({ title: "File too large", description: err, variant: "destructive" }); e.target.value = ""; return; }
-      setter(file);
+      try {
+        setOptimizing(label);
+        setter(file.type.startsWith("image/") ? await compressImage(file, { maxSizeBytes: 900 * 1024, maxWidthOrHeight: 1024 }) : file);
+      } catch (error) { toast({ title: `Could not optimize ${label}`, description: error instanceof Error ? error.message : "Please choose another file.", variant: "destructive" }); }
+      finally { setOptimizing(null); }
     }
   };
 
@@ -273,8 +280,8 @@ const NewAdmissionForm = () => {
               {photoPreview ? <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" /> : <Upload className="h-8 w-8 text-muted-foreground" />}
             </div>
             <div>
-              <Input type="file" accept="image/*" onChange={handlePhotoChange} className="max-w-xs" />
-              <p className="text-xs text-muted-foreground mt-1">Max 30 KB. Passport-size photograph.</p>
+              <Label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Upload from Gallery / Files<Input type="file" accept="image/jpeg,image/png,image/webp,image/*" onChange={handlePhotoChange} className="sr-only" /></Label>
+              <p className="text-xs text-muted-foreground mt-1">{optimizing === "photo" ? <span className="inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing image...</span> : "Large photos are automatically optimized before upload."}</p>
             </div>
           </div>
         </SectionCard>
@@ -401,16 +408,16 @@ const NewAdmissionForm = () => {
           <p className="mb-4 text-sm text-muted-foreground">Upload clear, readable copies where available. Files remain private and are only used for your admission review.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Aadhar Card (Max 50 KB)</Label>
-              <Input type="file" accept="image/*,.pdf" onChange={handleDocChange(setAadharDoc, "Aadhar Card")} />
+              <Label>Aadhar Card</Label>
+              <GalleryInput busy={optimizing === "Aadhar Card"} onChange={handleDocChange(setAadharDoc, "Aadhar Card")} />
             </div>
             <div className="space-y-2">
-              <Label>Birth Certificate (Max 50 KB)</Label>
-              <Input type="file" accept="image/*,.pdf" onChange={handleDocChange(setBirthCert, "Birth Certificate")} />
+              <Label>Birth Certificate</Label>
+              <GalleryInput busy={optimizing === "Birth Certificate"} onChange={handleDocChange(setBirthCert, "Birth Certificate")} />
             </div>
             <div className="space-y-2">
-              <Label>Guardian's Signature (Max 50 KB)</Label>
-              <Input type="file" accept="image/*" onChange={handleDocChange(setGuardianSig, "Guardian Signature")} />
+              <Label>Guardian's Signature</Label>
+              <GalleryInput busy={optimizing === "Guardian Signature"} onChange={handleDocChange(setGuardianSig, "Guardian Signature")} imagesOnly />
             </div>
           </div>
         </SectionCard>
@@ -494,5 +501,7 @@ const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fiel
     </div>
   );
 };
+
+const GalleryInput = ({ busy, onChange, imagesOnly = false }: { busy: boolean; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; imagesOnly?: boolean }) => <div className="space-y-1"><Label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Upload from Gallery / Files<Input type="file" accept={imagesOnly ? "image/jpeg,image/png,image/webp,image/*" : "image/jpeg,image/png,image/webp,image/*,application/pdf"} onChange={onChange} className="sr-only" /></Label>{busy && <p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing image...</p>}</div>;
 
 export default NewAdmissionForm;

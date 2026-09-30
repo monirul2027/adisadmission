@@ -72,7 +72,7 @@ const PrintAdmissionTest = () => {
         </Button>
       </div>
 
-      <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[12mm] text-[11px] leading-tight font-sans box-border">
+      <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] text-[11px] leading-tight font-sans box-border">
         <PrintHeader />
         <p className="text-[9px] mb-3">Test ID: {test.test_id} | Session: {test.session} | Date: {new Date(test.created_at).toLocaleDateString()}</p>
 
