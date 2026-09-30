@@ -410,6 +410,13 @@ export type Database = {
         Args: { p_class?: string; p_session: string; p_type: string }
         Returns: string
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "student"
