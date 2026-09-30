@@ -37,9 +37,10 @@ create policy "Admins manage site settings" on public.site_settings for all to a
 
 drop policy if exists "Public can read active site sections" on public.site_sections;
 drop policy if exists "Admins manage site sections" on public.site_sections;
-create policy "Public can read active site sections" on public.site_sections for select to anon, authenticated
-  using (is_active or public.has_role((select auth.uid()), 'admin'));
-create policy "Admins manage site sections" on public.site_sections for all to authenticated
+drop policy if exists "Allow public read active sections" on public.site_sections;
+drop policy if exists "Allow admins full access on sections" on public.site_sections;
+create policy "Allow public read active sections" on public.site_sections for select to anon, authenticated using (is_active = true);
+create policy "Allow admins full access on sections" on public.site_sections for all to authenticated
   using (public.has_role((select auth.uid()), 'admin'))
   with check (public.has_role((select auth.uid()), 'admin'));
 

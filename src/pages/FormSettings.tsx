@@ -8,8 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Upload, Trash2, Home } from "lucide-react";
-import { checkUserRole, uploadFile, validateFileSize, MAX_DOC_SIZE } from "@/lib/supabase-helpers";
+import { ArrowLeft, Save, Upload, Trash2, Home, Loader2 } from "lucide-react";
+import { checkUserRole, uploadFile } from "@/lib/supabase-helpers";
+import { compressImage } from "@/lib/image-compressor";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 
 const FIELD_LABELS: Record<string, string> = {
@@ -33,6 +34,7 @@ const FormSettings = () => {
   const [examControllerSignUrl, setExamControllerSignUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingSignature, setUploadingSignature] = useState<"head_master" | "exam_controller" | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -87,16 +89,15 @@ const FormSettings = () => {
   const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "head_master" | "exam_controller") => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const err = validateFileSize(file, MAX_DOC_SIZE, "Signature");
-    if (err) { toast({ title: "File too large", description: err, variant: "destructive" }); return; }
-    const path = await uploadFile("signature-uploads", file, type);
-    if (path) {
-      if (type === "head_master") setHeadMasterSignUrl(path);
-      else setExamControllerSignUrl(path);
-      toast({ title: `${type === "head_master" ? "Head Master" : "Exam Controller"} signature uploaded` });
-    } else {
-      toast({ title: "Upload failed", variant: "destructive" });
-    }
+    try {
+      setUploadingSignature(type);
+      const optimized = await compressImage(file, { maxSizeBytes: 50 * 1024, maxWidthOrHeight: 700 });
+      const path = await uploadFile("signature-uploads", optimized, type);
+      if (!path) throw new Error("Upload failed");
+      if (type === "head_master") setHeadMasterSignUrl(path); else setExamControllerSignUrl(path);
+      toast({ title: `${type === "head_master" ? "Head Master" : "Exam Controller"} signature optimized and uploaded` });
+    } catch (error) { toast({ title: "Signature upload failed", description: error instanceof Error ? error.message : "Please choose another image.", variant: "destructive" }); }
+    finally { setUploadingSignature(null); e.target.value = ""; }
   };
 
   const handleDeleteSignature = (type: "head_master" | "exam_controller") => {
@@ -160,7 +161,8 @@ const FormSettings = () => {
             <div className="space-y-2">
               <Label>Head Master Sign</Label>
               <div className="flex items-center gap-3">
-                <Input type="file" accept="image/*" onChange={(e) => handleSignatureUpload(e, "head_master")} className="max-w-xs" />
+                <Input type="file" accept="image/jpeg,image/png,image/webp,image/*" disabled={uploadingSignature !== null} onChange={(e) => handleSignatureUpload(e, "head_master")} className="max-w-xs" />
+                {uploadingSignature === "head_master" && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing…</span>}
                 {headMasterSignUrl && (
                   <>
                     <span className="text-xs text-green-600">✓ Uploaded</span>
@@ -174,7 +176,8 @@ const FormSettings = () => {
             <div className="space-y-2">
               <Label>Exam Controller Sign</Label>
               <div className="flex items-center gap-3">
-                <Input type="file" accept="image/*" onChange={(e) => handleSignatureUpload(e, "exam_controller")} className="max-w-xs" />
+                <Input type="file" accept="image/jpeg,image/png,image/webp,image/*" disabled={uploadingSignature !== null} onChange={(e) => handleSignatureUpload(e, "exam_controller")} className="max-w-xs" />
+                {uploadingSignature === "exam_controller" && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing…</span>}
                 {examControllerSignUrl && (
                   <>
                     <span className="text-xs text-green-600">✓ Uploaded</span>
@@ -185,7 +188,7 @@ const FormSettings = () => {
                 )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Max 50 KB each. Head Master sign appears on Admission Form & Admit Card. Exam Controller sign appears only on Admit Card.</p>
+            <p className="text-xs text-muted-foreground">Images are automatically optimized before upload. Head Master sign appears on Admission Form & Admit Card. Exam Controller sign appears only on Admit Card.</p>
           </CardContent>
         </Card>
 

@@ -87,6 +87,9 @@ export const generateIdViaEdge = async (type: string, session: string, className
 };
 
 export const checkUserRole = async (userId: string): Promise<"admin" | "student" | null> => {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId).single();
-  return data?.role as "admin" | "student" | null;
+  const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  if (error || !data?.length) return null;
+  const roles = data.map((row) => row.role);
+  if (roles.includes("admin")) return "admin";
+  return roles.includes("student") ? "student" : null;
 };

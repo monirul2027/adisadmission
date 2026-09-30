@@ -409,15 +409,15 @@ const NewAdmissionForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Aadhar Card</Label>
-              <GalleryInput busy={optimizing === "Aadhar Card"} onChange={handleDocChange(setAadharDoc, "Aadhar Card")} />
+              <GalleryInput busy={optimizing === "Aadhar Card"} file={aadharDoc} onRemove={() => setAadharDoc(null)} onChange={handleDocChange(setAadharDoc, "Aadhar Card")} />
             </div>
             <div className="space-y-2">
               <Label>Birth Certificate</Label>
-              <GalleryInput busy={optimizing === "Birth Certificate"} onChange={handleDocChange(setBirthCert, "Birth Certificate")} />
+              <GalleryInput busy={optimizing === "Birth Certificate"} file={birthCert} onRemove={() => setBirthCert(null)} onChange={handleDocChange(setBirthCert, "Birth Certificate")} />
             </div>
             <div className="space-y-2">
               <Label>Guardian's Signature</Label>
-              <GalleryInput busy={optimizing === "Guardian Signature"} onChange={handleDocChange(setGuardianSig, "Guardian Signature")} imagesOnly />
+              <GalleryInput busy={optimizing === "Guardian Signature"} file={guardianSig} onRemove={() => setGuardianSig(null)} onChange={handleDocChange(setGuardianSig, "Guardian Signature")} imagesOnly />
             </div>
           </div>
         </SectionCard>
@@ -502,6 +502,6 @@ const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fiel
   );
 };
 
-const GalleryInput = ({ busy, onChange, imagesOnly = false }: { busy: boolean; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; imagesOnly?: boolean }) => <div className="space-y-1"><Label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Upload from Gallery / Files<Input type="file" accept={imagesOnly ? "image/jpeg,image/png,image/webp,image/*" : "image/jpeg,image/png,image/webp,image/*,application/pdf"} onChange={onChange} className="sr-only" /></Label>{busy && <p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing image...</p>}</div>;
+const GalleryInput = ({ busy, file, onChange, onRemove, imagesOnly = false }: { busy: boolean; file: File | null; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; imagesOnly?: boolean }) => <div className="space-y-2"><Label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {file ? "Change file" : "Upload from Gallery / Files"}<Input type="file" accept={imagesOnly ? "image/jpeg,image/png,image/webp,image/*" : "image/jpeg,image/png,image/webp,image/*,application/pdf"} onChange={onChange} className="sr-only" /></Label>{busy && <p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing image...</p>}{file && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-green-100 px-2 py-1 font-medium text-green-800"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /><span className="max-w-40 truncate">{file.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={onRemove}>Remove</button></div>}</div>;
 
 export default NewAdmissionForm;

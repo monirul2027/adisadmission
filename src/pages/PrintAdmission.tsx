@@ -177,18 +177,8 @@ const PrintAdmission = () => {
           </div>
         </div>
 
-        {signedUrls.aadhar && (
-          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] flex flex-col box-border" style={{ pageBreakBefore: "always" }}>
-            <h2 className="text-sm font-bold text-center border-b pb-2 mb-3">Aadhar Card — {app.full_name}</h2>
-            <div className="flex-1 w-full flex items-center justify-center"><img src={signedUrls.aadhar} alt="Aadhar Card" className="print-document-img w-full h-auto max-h-[260mm] object-contain mx-auto block" /></div>
-          </div>
-        )}
-        {signedUrls.birth && (
-          <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] flex flex-col box-border" style={{ pageBreakBefore: "always" }}>
-            <h2 className="text-sm font-bold text-center border-b pb-2 mb-3">Birth Certificate — {app.full_name}</h2>
-            <div className="flex-1 w-full flex items-center justify-center"><img src={signedUrls.birth} alt="Birth Certificate" className="print-document-img w-full h-auto max-h-[260mm] object-contain mx-auto block" /></div>
-          </div>
-        )}
+        {signedUrls.aadhar && <DocumentAppendix title={`Aadhar Card — ${app.full_name}`} url={signedUrls.aadhar} />}
+        {signedUrls.birth && <DocumentAppendix title={`Birth Certificate — ${app.full_name}`} url={signedUrls.birth} />}
         {signedUrls.signature && (
           <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] flex flex-col box-border" style={{ pageBreakBefore: "always" }}>
             <h2 className="text-sm font-bold text-center border-b pb-2 mb-3">Guardian Signature — {app.full_name}</h2>
@@ -212,5 +202,10 @@ const PrintTable = ({ rows }: { rows: [string, string][] }) => (
     </tbody>
   </table>
 );
+
+const DocumentAppendix = ({ title, url }: { title: string; url: string }) => {
+  const isPdf = url.split("?")[0].toLowerCase().endsWith(".pdf");
+  return <div className="print-page w-[210mm] min-h-[297mm] mx-auto p-[10mm] flex flex-col box-border" style={{ pageBreakBefore: "always" }}><h2 className="text-sm font-bold text-center border-b pb-2 mb-3">{title}</h2><div className="flex-1 w-full flex items-center justify-center">{isPdf ? <object data={url} type="application/pdf" className="h-[260mm] w-full"><div className="text-center text-sm"><p>This PDF cannot be previewed in this browser.</p><a className="mt-3 inline-block underline print:hidden" href={url} target="_blank" rel="noreferrer">Open or download the document</a><p className="mt-3 hidden print:block">Attached PDF: open the original document from the application record if it is not included by the browser print dialog.</p></div></object> : <img src={url} alt={title} className="print-document-img w-full h-auto max-h-[260mm] object-contain mx-auto block" />}</div></div>;
+};
 
 export default PrintAdmission;
