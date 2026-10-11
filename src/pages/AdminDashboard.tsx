@@ -63,11 +63,43 @@ const AdminDashboard = () => {
     setLoading(false);
   };
 
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const syncToEduNest = async (id: string) => {
+    setSyncingId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-to-edunest", { body: { application_id: id } });
+      return !error && data?.success === true;
+    } catch {
+      return false;
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  const retrySync = async (id: string) => {
+    const ok = await syncToEduNest(id);
+    toast(ok
+      ? { title: "Synced to EduNest successfully!" }
+      : { title: "Sync failed", description: "Could not sync with EduNest. Please retry.", variant: "destructive" });
+  };
+
   const updateAppStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("applications").update({ status }).eq("id", id);
+    const app = applications.find(a => a.id === id);
+    const update: Record<string, string> = { status };
+    if (status === "Approved" && app && !app.student_code) {
+      const { data: code, error: codeError } = await (supabase.rpc as any)("generate_new_student_code", { p_session_year: app.session || String(new Date().getFullYear()) });
+      if (codeError || !code) { toast({ title: "Error", description: "Could not generate student code. Status not changed.", variant: "destructive" }); return; }
+      update.student_code = code as string;
+    }
+    const { error } = await supabase.from("applications").update(update as any).eq("id", id);
     if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
-    setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-    toast({ title: "Status updated" });
+    setApplications(prev => prev.map(a => a.id === id ? { ...a, ...update } : a));
+    if (status !== "Approved") { toast({ title: "Status updated" }); return; }
+    const ok = await syncToEduNest(id);
+    toast(ok
+      ? { title: "Student approved and synced to EduNest successfully!" }
+      : { title: "Approved locally, but failed to sync with EduNest. Please retry.", variant: "destructive" });
   };
 
   const updateTestStatus = async (id: string, status: string) => {
