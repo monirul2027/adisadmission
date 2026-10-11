@@ -158,6 +158,7 @@ export type Database = {
           session: string | null
           sex: string
           status: string
+          student_code: string | null
           user_id: string | null
           whatsapp_no: string | null
         }
@@ -208,6 +209,7 @@ export type Database = {
           session?: string | null
           sex: string
           status?: string
+          student_code?: string | null
           user_id?: string | null
           whatsapp_no?: string | null
         }
@@ -258,6 +260,7 @@ export type Database = {
           session?: string | null
           sex?: string
           status?: string
+          student_code?: string | null
           user_id?: string | null
           whatsapp_no?: string | null
         }
@@ -405,6 +408,10 @@ export type Database = {
           status: string
           student_name: string
         }[]
+      }
+      generate_new_student_code: {
+        Args: { p_session_year: string }
+        Returns: string
       }
       generate_next_id: {
         Args: { p_class?: string; p_session: string; p_type: string }

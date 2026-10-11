@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList, Eye, BarChart3, Clock3, CheckCircle2, XCircle, Home } from "lucide-react";
+import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList, Eye, BarChart3, Clock3, CheckCircle2, XCircle, Home, RefreshCw } from "lucide-react";
 import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import * as XLSX from "xlsx";
@@ -63,11 +63,43 @@ const AdminDashboard = () => {
     setLoading(false);
   };
 
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+
+  const syncToEduNest = async (id: string) => {
+    setSyncingId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-to-edunest", { body: { application_id: id } });
+      return !error && data?.success === true;
+    } catch {
+      return false;
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  const retrySync = async (id: string) => {
+    const ok = await syncToEduNest(id);
+    toast(ok
+      ? { title: "Synced to EduNest successfully!" }
+      : { title: "Sync failed", description: "Could not sync with EduNest. Please retry.", variant: "destructive" });
+  };
+
   const updateAppStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("applications").update({ status }).eq("id", id);
+    const app = applications.find(a => a.id === id);
+    const update: Record<string, string> = { status };
+    if (status === "Approved" && app && !app.student_code) {
+      const { data: code, error: codeError } = await (supabase.rpc as any)("generate_new_student_code", { p_session_year: app.session || String(new Date().getFullYear()) });
+      if (codeError || !code) { toast({ title: "Error", description: "Could not generate student code. Status not changed.", variant: "destructive" }); return; }
+      update.student_code = code as string;
+    }
+    const { error } = await supabase.from("applications").update(update as any).eq("id", id);
     if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
-    setApplications(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-    toast({ title: "Status updated" });
+    setApplications(prev => prev.map(a => a.id === id ? { ...a, ...update } : a));
+    if (status !== "Approved") { toast({ title: "Status updated" }); return; }
+    const ok = await syncToEduNest(id);
+    toast(ok
+      ? { title: "Student approved and synced to EduNest successfully!" }
+      : { title: "Approved locally, but failed to sync with EduNest. Please retry.", variant: "destructive" });
   };
 
   const updateTestStatus = async (id: string, status: string) => {
@@ -290,7 +322,7 @@ const AdminDashboard = () => {
                     <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No applications found.</TableCell></TableRow>
                   ) : filteredApps.map(app => (
                     <TableRow key={app.id}>
-                      <TableCell className="font-mono text-xs">{app.application_id}</TableCell>
+                      <TableCell className="font-mono text-xs">{app.application_id}{app.student_code && <div className="text-primary font-semibold">{app.student_code}</div>}</TableCell>
                       <TableCell>{app.desired_class}</TableCell>
                       <TableCell className="font-medium">{app.full_name}</TableCell>
                       <TableCell>{app.father_name}</TableCell>
@@ -309,6 +341,11 @@ const AdminDashboard = () => {
                               <SelectItem value="Rejected">Rejected</SelectItem>
                             </SelectContent>
                           </Select>
+                          {app.status === "Approved" && app.student_code && (
+                            <Button size="sm" variant="secondary" className="h-7 text-xs" disabled={syncingId === app.id} onClick={() => retrySync(app.id)}>
+                              <RefreshCw className={`mr-1 h-3 w-3 ${syncingId === app.id ? "animate-spin" : ""}`} /> Retry Sync
+                            </Button>
+                          )}
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => window.open(`/print/admission/${app.id}?view=true`, "_blank")}>
                             <Eye className="mr-1 h-3 w-3" /> View
                           </Button>
