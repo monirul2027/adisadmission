@@ -61,7 +61,14 @@ Deno.serve(async (req) => {
     const text = await res.text();
     if (!res.ok) {
       console.error("EduNest sync failed", res.status, text);
-      return json({ success: false, status: res.status, error: "EduNest rejected the sync" }, 502);
+      let parsed: any = null;
+      try { parsed = JSON.parse(text); } catch { /* non-JSON body */ }
+      const pick = (v: unknown) => (typeof v === "string" ? v : v ? JSON.stringify(v) : "");
+      const detail =
+        pick(parsed?.error) || pick(parsed?.message) || pick(parsed?.detail) ||
+        (text && text.trim().length < 300 ? text.trim() : "") ||
+        `EduNest responded with HTTP ${res.status}`;
+      return json({ success: false, status: res.status, error: `EduNest (${res.status}): ${detail}` }, 502);
     }
     return json({ success: true, student_code: data.student_code });
   } catch (err) {
