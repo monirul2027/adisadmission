@@ -1,0 +1,1 @@
+ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS is_synced BOOLEAN NOT NULL DEFAULT false;

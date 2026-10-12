@@ -130,6 +130,7 @@ export type Database = {
           guardian_signature_url: string | null
           health_issue: string | null
           id: string
+          is_synced: boolean
           landmark: string | null
           last_attended_class: string | null
           last_institution: string | null
@@ -181,6 +182,7 @@ export type Database = {
           guardian_signature_url?: string | null
           health_issue?: string | null
           id?: string
+          is_synced?: boolean
           landmark?: string | null
           last_attended_class?: string | null
           last_institution?: string | null
@@ -232,6 +234,7 @@ export type Database = {
           guardian_signature_url?: string | null
           health_issue?: string | null
           id?: string
+          is_synced?: boolean
           landmark?: string | null
           last_attended_class?: string | null
           last_institution?: string | null
