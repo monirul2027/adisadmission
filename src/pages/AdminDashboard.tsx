@@ -65,23 +65,32 @@ const AdminDashboard = () => {
 
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
-  const syncToEduNest = async (id: string) => {
+  const syncToEduNest = async (id: string): Promise<{ ok: boolean; error?: string }> => {
     setSyncingId(id);
     try {
       const { data, error } = await supabase.functions.invoke("sync-to-edunest", { body: { application_id: id } });
-      return !error && data?.success === true;
-    } catch {
-      return false;
+      if (error) {
+        let msg = error.message;
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) msg = typeof body.error === "string" ? body.error : JSON.stringify(body.error);
+        } catch { /* ignore */ }
+        return { ok: false, error: msg };
+      }
+      if (data?.success !== true) return { ok: false, error: data?.error || "Unknown sync error" };
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || "Network error" };
     } finally {
       setSyncingId(null);
     }
   };
 
   const retrySync = async (id: string) => {
-    const ok = await syncToEduNest(id);
-    toast(ok
+    const r = await syncToEduNest(id);
+    toast(r.ok
       ? { title: "Synced to EduNest successfully!" }
-      : { title: "Sync failed", description: "Could not sync with EduNest. Please retry.", variant: "destructive" });
+      : { title: "Sync failed", description: r.error, variant: "destructive" });
   };
 
   const updateAppStatus = async (id: string, status: string) => {
@@ -96,10 +105,10 @@ const AdminDashboard = () => {
     if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
     setApplications(prev => prev.map(a => a.id === id ? { ...a, ...update } : a));
     if (status !== "Approved") { toast({ title: "Status updated" }); return; }
-    const ok = await syncToEduNest(id);
-    toast(ok
+    const r = await syncToEduNest(id);
+    toast(r.ok
       ? { title: "Student approved and synced to EduNest successfully!" }
-      : { title: "Approved locally, but failed to sync with EduNest. Please retry.", variant: "destructive" });
+      : { title: "Approved locally, but failed to sync with EduNest. Please retry.", description: r.error, variant: "destructive" });
   };
 
   const updateTestStatus = async (id: string, status: string) => {
