@@ -64,11 +64,13 @@ const AdminDashboard = () => {
   };
 
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncApp, setSyncApp] = useState<any>(null);
+  const [section, setSection] = useState("");
 
-  const syncToEduNest = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+  const syncToEduNest = async (id: string, sec: string): Promise<{ ok: boolean; error?: string }> => {
     setSyncingId(id);
     try {
-      const { data, error } = await supabase.functions.invoke("sync-to-edunest", { body: { application_id: id } });
+      const { data, error } = await supabase.functions.invoke("sync-to-edunest", { body: { application_id: id, section: sec } });
       if (error) {
         let msg = error.message;
         try {
@@ -86,11 +88,16 @@ const AdminDashboard = () => {
     }
   };
 
-  const retrySync = async (id: string) => {
-    const r = await syncToEduNest(id);
-    toast(r.ok
-      ? { title: "Synced to EduNest successfully!" }
-      : { title: "Sync failed", description: r.error, variant: "destructive" });
+  const confirmSync = async () => {
+    if (!syncApp || !section) return;
+    const id = syncApp.id;
+    const r = await syncToEduNest(id, section);
+    if (!r.ok) { toast({ title: "Sync failed", description: r.error, variant: "destructive" }); return; }
+    const { error } = await supabase.from("applications").update({ is_synced: true } as any).eq("id", id);
+    if (error) { toast({ title: "Synced, but could not mark as synced", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
+    setApplications(prev => prev.map(a => a.id === id ? { ...a, is_synced: true } : a));
+    setSyncApp(null); setSection("");
+    toast({ title: `Student added to section ${section} and synced to EduNest!` });
   };
 
   const updateAppStatus = async (id: string, status: string) => {
@@ -104,11 +111,7 @@ const AdminDashboard = () => {
     const { error } = await supabase.from("applications").update(update as any).eq("id", id);
     if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
     setApplications(prev => prev.map(a => a.id === id ? { ...a, ...update } : a));
-    if (status !== "Approved") { toast({ title: "Status updated" }); return; }
-    const r = await syncToEduNest(id);
-    toast(r.ok
-      ? { title: "Student approved and synced to EduNest successfully!" }
-      : { title: "Approved locally, but failed to sync with EduNest. Please retry.", description: r.error, variant: "destructive" });
+    toast({ title: status === "Approved" ? "Student approved. Use \"Add to System\" to sync to EduNest." : "Status updated" });
   };
 
   const updateTestStatus = async (id: string, status: string) => {
@@ -350,11 +353,13 @@ const AdminDashboard = () => {
                               <SelectItem value="Rejected">Rejected</SelectItem>
                             </SelectContent>
                           </Select>
-                          {app.status === "Approved" && app.student_code && (
-                            <Button size="sm" variant="secondary" className="h-7 text-xs" disabled={syncingId === app.id} onClick={() => retrySync(app.id)}>
-                              <RefreshCw className={`mr-1 h-3 w-3 ${syncingId === app.id ? "animate-spin" : ""}`} /> Retry Sync
+                          {app.status === "Approved" && app.student_code && (app.is_synced ? (
+                            <Badge className="h-7 bg-primary/15 text-primary border-primary/30 hover:bg-primary/15"><CheckCircle2 className="mr-1 h-3 w-3" /> Synced to EduNest</Badge>
+                          ) : (
+                            <Button size="sm" className="h-7 text-xs" onClick={() => { setSyncApp(app); setSection(""); }}>
+                              <Plus className="mr-1 h-3 w-3" /> Add to System
                             </Button>
-                          )}
+                          ))}
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => window.open(`/print/admission/${app.id}?view=true`, "_blank")}>
                             <Eye className="mr-1 h-3 w-3" /> View
                           </Button>
@@ -449,6 +454,35 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Add to System Dialog */}
+      <Dialog open={!!syncApp} onOpenChange={(o) => { if (!o && !syncingId) { setSyncApp(null); setSection(""); } }}>
+        <DialogContent className="max-w-md">
+          {syncApp && (
+            <div className="space-y-4">
+              <DialogHeader>
+                <DialogTitle className="text-primary">Add to System — EduNest</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-3">
+                <div><Label>Student Name</Label><Input value={syncApp.full_name || ""} readOnly /></div>
+                <div><Label>Class</Label><Input value={syncApp.desired_class || ""} readOnly /></div>
+                <div>
+                  <Label>Section *</Label>
+                  <Select value={section} onValueChange={setSection}>
+                    <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
+                    <SelectContent>
+                      {["GREEN", "VIOLET", "BLUE", "ORANGE"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button className="w-full" disabled={!section || syncingId === syncApp.id} onClick={confirmSync}>
+                {syncingId === syncApp.id ? <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Syncing...</> : "Confirm & Sync"}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Application Dialog */}
       <Dialog open={!!editApp} onOpenChange={() => setEditApp(null)}>
