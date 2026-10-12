@@ -34,6 +34,10 @@ Deno.serve(async (req) => {
     if (typeof applicationId !== "string" || !/^[0-9a-f-]{36}$/i.test(applicationId)) {
       return json({ error: "application_id is required" }, 400);
     }
+    const section = body?.section;
+    if (!["GREEN", "VIOLET", "BLUE", "ORANGE"].includes(section)) {
+      return json({ error: "A valid section (GREEN, VIOLET, BLUE, ORANGE) is required" }, 400);
+    }
 
     // Always read the authoritative row from the database instead of trusting client data.
     const { data, error } = await admin.from("applications").select("*").eq("id", applicationId).maybeSingle();
@@ -51,6 +55,7 @@ Deno.serve(async (req) => {
       dist: data.present_dist,
       class_name: data.desired_class,
       session_year: data.session,
+      section,
     };
 
     const res = await fetch(EDUNEST_URL, {
