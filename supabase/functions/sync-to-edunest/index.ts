@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const payload = {
       student_code: data.student_code,
       full_name: data.full_name,
-      guardian_name: data.guardian_name,
+     guardian_name: data.father_name,
       contact: data.mobile_no,
       village: data.present_vill,
       po: data.present_po,
