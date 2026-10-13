@@ -38,6 +38,12 @@ Deno.serve(async (req) => {
     if (!["GREEN", "VIOLET", "BLUE", "ORANGE"].includes(section)) {
       return json({ error: "A valid section (GREEN, VIOLET, BLUE, ORANGE) is required" }, 400);
     }
+    const rollNumber = typeof body?.roll_number === "string" ? body.roll_number.trim() : "";
+    const admissionFee = Number(body?.admission_fee ?? 0);
+    const monthlyFee = Number(body?.monthly_fee ?? 0);
+    if (!Number.isFinite(admissionFee) || admissionFee < 0 || !Number.isFinite(monthlyFee) || monthlyFee < 0) {
+      return json({ error: "admission_fee and monthly_fee must be non-negative numbers" }, 400);
+    }
 
     // Always read the authoritative row from the database instead of trusting client data.
     const { data, error } = await admin.from("applications").select("*").eq("id", applicationId).maybeSingle();
@@ -75,6 +81,36 @@ Deno.serve(async (req) => {
         `EduNest responded with HTTP ${res.status}`;
       return json({ success: false, status: res.status, error: `EduNest (${res.status}): ${detail}` }, 502);
     }
+    if (admissionFee > 0 || monthlyFee > 0) {
+      const feePortalUrl = Deno.env.get("FEE_PORTAL_WEBHOOK_URL");
+      const feeWebhookSecret = Deno.env.get("FEE_WEBHOOK_SECRET");
+      if (!feePortalUrl || !feeWebhookSecret) {
+        console.error("Fee Portal sync skipped: FEE_PORTAL_WEBHOOK_URL or FEE_WEBHOOK_SECRET is not configured");
+      } else {
+        try {
+          const feeResponse = await fetch(feePortalUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${feeWebhookSecret}` },
+            body: JSON.stringify({
+              name: data.full_name,
+              guardian_name: data.father_name,
+              class: data.desired_class,
+              section,
+              roll_number: rollNumber,
+              admission_fee: admissionFee,
+              monthly_fee: monthlyFee,
+              village: data.present_vill,
+              phone: data.mobile_no,
+              student_code: data.student_code,
+            }),
+          });
+          if (!feeResponse.ok) console.error("Fee Portal sync failed", feeResponse.status, await feeResponse.text());
+        } catch (feeError) {
+          console.error("Fee Portal sync failed", feeError);
+        }
+      }
+    }
+
     return json({ success: true, student_code: data.student_code });
   } catch (err) {
     console.error("sync-to-edunest error", err);

@@ -66,11 +66,14 @@ const AdminDashboard = () => {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncApp, setSyncApp] = useState<any>(null);
   const [section, setSection] = useState("");
+  const [rollNumber, setRollNumber] = useState("");
+  const [admissionFee, setAdmissionFee] = useState("0");
+  const [monthlyFee, setMonthlyFee] = useState("0");
 
-  const syncToEduNest = async (id: string, sec: string): Promise<{ ok: boolean; error?: string }> => {
+  const syncToEduNest = async (id: string, sec: string, syncData: { roll_number: string; admission_fee: number; monthly_fee: number }): Promise<{ ok: boolean; error?: string }> => {
     setSyncingId(id);
     try {
-      const { data, error } = await supabase.functions.invoke("sync-to-edunest", { body: { application_id: id, section: sec } });
+      const { data, error } = await supabase.functions.invoke("sync-to-edunest", { body: { application_id: id, section: sec, ...syncData } });
       if (error) {
         let msg = error.message;
         try {
@@ -91,12 +94,18 @@ const AdminDashboard = () => {
   const confirmSync = async () => {
     if (!syncApp || !section) return;
     const id = syncApp.id;
-    const r = await syncToEduNest(id, section);
+    const parsedAdmissionFee = Number(admissionFee);
+    const parsedMonthlyFee = Number(monthlyFee);
+    if (!Number.isFinite(parsedAdmissionFee) || parsedAdmissionFee < 0 || !Number.isFinite(parsedMonthlyFee) || parsedMonthlyFee < 0) {
+      toast({ title: "Check fee amounts", description: "Admission Fee and Monthly Fee must be zero or a positive number.", variant: "destructive" });
+      return;
+    }
+    const r = await syncToEduNest(id, section, { roll_number: rollNumber.trim(), admission_fee: parsedAdmissionFee, monthly_fee: parsedMonthlyFee });
     if (!r.ok) { toast({ title: "Sync failed", description: r.error, variant: "destructive" }); return; }
     const { error } = await supabase.from("applications").update({ is_synced: true } as any).eq("id", id);
     if (error) { toast({ title: "Synced, but could not mark as synced", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
     setApplications(prev => prev.map(a => a.id === id ? { ...a, is_synced: true } : a));
-    setSyncApp(null); setSection("");
+    setSyncApp(null); setSection(""); setRollNumber(""); setAdmissionFee("0"); setMonthlyFee("0");
     toast({ title: `Student added to section ${section} and synced to EduNest!` });
   };
 
@@ -356,7 +365,7 @@ const AdminDashboard = () => {
                           {app.status === "Approved" && app.student_code && (app.is_synced ? (
                             <Badge className="h-7 bg-primary/15 text-primary border-primary/30 hover:bg-primary/15"><CheckCircle2 className="mr-1 h-3 w-3" /> Synced to EduNest</Badge>
                           ) : (
-                            <Button size="sm" className="h-7 text-xs" onClick={() => { setSyncApp(app); setSection(""); }}>
+                            <Button size="sm" className="h-7 text-xs" onClick={() => { setSyncApp(app); setSection(""); setRollNumber(""); setAdmissionFee("0"); setMonthlyFee("0"); }}>
                               <Plus className="mr-1 h-3 w-3" /> Add to System
                             </Button>
                           ))}
@@ -456,7 +465,7 @@ const AdminDashboard = () => {
       </main>
 
       {/* Add to System Dialog */}
-      <Dialog open={!!syncApp} onOpenChange={(o) => { if (!o && !syncingId) { setSyncApp(null); setSection(""); } }}>
+      <Dialog open={!!syncApp} onOpenChange={(o) => { if (!o && !syncingId) { setSyncApp(null); setSection(""); setRollNumber(""); setAdmissionFee("0"); setMonthlyFee("0"); } }}>
         <DialogContent className="max-w-md">
           {syncApp && (
             <div className="space-y-4">
@@ -474,6 +483,11 @@ const AdminDashboard = () => {
                       {["GREEN", "VIOLET", "BLUE", "ORANGE"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+                <div><Label htmlFor="sync-roll-number">Roll Number <span className="text-muted-foreground">(optional)</span></Label><Input id="sync-roll-number" value={rollNumber} onChange={(event) => setRollNumber(event.target.value)} placeholder="Enter roll number" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label htmlFor="sync-admission-fee">Admission Fee</Label><Input id="sync-admission-fee" type="number" min="0" step="0.01" value={admissionFee} onChange={(event) => setAdmissionFee(event.target.value)} /></div>
+                  <div><Label htmlFor="sync-monthly-fee">Monthly Fee</Label><Input id="sync-monthly-fee" type="number" min="0" step="0.01" value={monthlyFee} onChange={(event) => setMonthlyFee(event.target.value)} /></div>
                 </div>
               </div>
               <Button className="w-full" disabled={!section || syncingId === syncApp.id} onClick={confirmSync}>
