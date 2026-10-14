@@ -50,16 +50,18 @@ Deno.serve(async (req) => {
     if (error || !data) return json({ error: "Application not found" }, 404);
     if (data.status !== "Approved" || !data.student_code) return json({ error: "Application is not approved" }, 400);
 
+    // EduNest expects bare class names (LKG, UKG, I, II, ...) — strip any legacy "Class " prefix.
+    const normalizedClass = (data.desired_class || "").replace(/^Class\s+/i, "").trim();
     const payload = {
       student_code: data.student_code,
       full_name: data.full_name,
-     guardian_name: data.father_name,
+      guardian_name: data.father_name,
       contact: data.mobile_no,
       village: data.present_vill,
       po: data.present_po,
       ps: data.present_ps,
       dist: data.present_dist,
-      class_name: data.desired_class,
+      class_name: normalizedClass,
       session_year: data.session,
       section,
     };
