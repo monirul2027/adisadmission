@@ -151,7 +151,7 @@ const NewAdmissionForm = () => {
         photo_url: photoUrl,
         full_name: get("full_name"),
         father_name: get("father_name"),
-        desired_class: desiredClass,
+        desired_class: desiredClass.replace(/^Class\s+/i, "").trim(),
         present_vill: get("present_vill"),
         present_po: get("present_po"),
         present_ps: get("present_ps"),

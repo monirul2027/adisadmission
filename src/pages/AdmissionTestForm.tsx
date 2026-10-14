@@ -85,7 +85,7 @@ const AdmissionTestForm = () => {
         user_id: userId,
         test_id: generatedId,
         session,
-        applying_for_class: applyingClass,
+        applying_for_class: applyingClass.replace(/^Class\s+/i, "").trim(),
         student_name: get("student_name"),
         father_name: get("father_name"),
         occupation: get("occupation"),
