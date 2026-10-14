@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Download, LogOut, Search, Printer, Plus, Settings, Edit, ClipboardList, Eye, BarChart3, Clock3, CheckCircle2, XCircle, Home, RefreshCw } from "lucide-react";
-import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole } from "@/lib/supabase-helpers";
+import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole, stripClassPrefix } from "@/lib/supabase-helpers";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import * as XLSX from "xlsx";
 
@@ -148,7 +148,7 @@ const AdminDashboard = () => {
   };
 
   const filteredApps = applications.filter(a => {
-    const classMatch = filteredClass === "All" || a.desired_class === filteredClass;
+    const classMatch = filteredClass === "All" || stripClassPrefix(a.desired_class) === filteredClass;
     const sessionMatch = filteredSession === "All" || a.session === filteredSession;
     const searchMatch = !search || a.full_name?.toLowerCase().includes(search.toLowerCase()) || a.application_id?.toLowerCase().includes(search.toLowerCase());
     const statusMatch = filteredStatus === "All" || a.status === filteredStatus;
@@ -156,7 +156,7 @@ const AdminDashboard = () => {
   });
 
   const filteredTests = tests.filter(t => {
-    const classMatch = filteredClass === "All" || t.applying_for_class === filteredClass;
+    const classMatch = filteredClass === "All" || stripClassPrefix(t.applying_for_class) === filteredClass;
     const sessionMatch = filteredSession === "All" || t.session === filteredSession;
     const searchMatch = !search || t.student_name?.toLowerCase().includes(search.toLowerCase()) || t.test_id?.toLowerCase().includes(search.toLowerCase());
     const statusMatch = filteredStatus === "All" || t.status === filteredStatus;
@@ -344,7 +344,7 @@ const AdminDashboard = () => {
                   ) : filteredApps.map(app => (
                     <TableRow key={app.id}>
                       <TableCell className="font-mono text-xs">{app.application_id}{app.student_code && <div className="text-primary font-semibold">{app.student_code}</div>}</TableCell>
-                      <TableCell>{app.desired_class}</TableCell>
+                      <TableCell>{stripClassPrefix(app.desired_class)}</TableCell>
                       <TableCell className="font-medium">{app.full_name}</TableCell>
                       <TableCell>{app.father_name}</TableCell>
                       <TableCell>{app.present_vill || "—"}</TableCell>
@@ -421,7 +421,7 @@ const AdminDashboard = () => {
                   ) : filteredTests.map(test => (
                     <TableRow key={test.id}>
                       <TableCell className="font-mono text-xs">{test.test_id}</TableCell>
-                      <TableCell>{test.applying_for_class}</TableCell>
+                      <TableCell>{stripClassPrefix(test.applying_for_class)}</TableCell>
                       <TableCell className="font-medium">{test.student_name}</TableCell>
                       <TableCell>{test.father_name}</TableCell>
                       <TableCell>{test.village || "—"}</TableCell>
@@ -474,7 +474,7 @@ const AdminDashboard = () => {
               </DialogHeader>
               <div className="grid gap-3">
                 <div><Label>Student Name</Label><Input value={syncApp.full_name || ""} readOnly /></div>
-                <div><Label>Class</Label><Input value={syncApp.desired_class || ""} readOnly /></div>
+                <div><Label>Class</Label><Input value={stripClassPrefix(syncApp.desired_class)} readOnly /></div>
                 <div>
                   <Label>Section *</Label>
                   <Select value={section} onValueChange={setSection}>
