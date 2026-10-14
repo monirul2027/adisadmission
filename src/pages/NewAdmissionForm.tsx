@@ -12,7 +12,8 @@ import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, Ima
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole } from "@/lib/supabase-helpers";
+import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
+import { getAccountFullName } from "@/lib/auth-flow";
 import { compressImage } from "@/lib/image-compressor";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
@@ -38,12 +39,14 @@ const NewAdmissionForm = () => {
   const [sex, setSex] = useState("");
   const [religion, setReligion] = useState("");
   const [optimizing, setOptimizing] = useState<string | null>(null);
+  const [formFilledBy, setFormFilledBy] = useState("");
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session: authSession } } = await supabase.auth.getSession();
       if (!authSession) { navigate("/student/login"); return; }
       setUserId(authSession.user.id);
+      setFormFilledBy(getAccountFullName(authSession.user));
       const role = await checkUserRole(authSession.user.id);
       setIsAdmin(role === "admin");
     };
@@ -151,7 +154,7 @@ const NewAdmissionForm = () => {
         photo_url: photoUrl,
         full_name: get("full_name"),
         father_name: get("father_name"),
-        desired_class: desiredClass.replace(/^Class\s+/i, "").trim(),
+        desired_class: normalizeClass(desiredClass),
         present_vill: get("present_vill"),
         present_po: get("present_po"),
         present_ps: get("present_ps"),
@@ -187,13 +190,14 @@ const NewAdmissionForm = () => {
         guardian_signature_url: sigUrl,
       };
 
-      // Admin can fill fees and auto-approve
+      // Admin-entered fee details are retained on the application, but every
+      // submission remains pending until an admin explicitly approves it.
       if (isAdmin) {
         insertData.monthly_fees = get("monthly_fees");
         insertData.admission_fee = get("admission_fee");
-        insertData.status = "Approved";
       }
 
+      insertData.status = "Pending";
       insertData.form_filled_by = get("form_filled_by");
       insertData.landmark = get("landmark");
 
@@ -248,10 +252,10 @@ const NewAdmissionForm = () => {
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-6">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <Button variant="ghost" size="sm" className="absolute left-4 top-4 text-primary-foreground hover:bg-white/10" onClick={() => navigate(backPath)}>
+          <Button variant="ghost" size="sm" className="absolute left-4 top-4 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => navigate(backPath)}>
             <ArrowLeft className="mr-1 h-4 w-4" /> Back
           </Button>
-          <img alt="School Logo" className="mx-auto h-20 w-20 rounded-full bg-white p-1 mb-3" src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" />
+          <img alt="School Logo" className="mx-auto h-20 w-20 rounded-full bg-primary-foreground p-1 mb-3" src="/lovable-uploads/b3369ca5-553a-4c65-961b-27d4deb3ca86.jpg" />
           <h1 className="text-2xl md:text-3xl font-bold">Alor Disha Islamic School</h1>
           <p className="text-sm opacity-90 mt-1">Dakshin Krishnanagar, Malancha-Antardwipa Road, Dhuliyan, Murshidabad, 742202</p>
           <div className="mt-3 inline-block bg-accent text-accent-foreground px-4 py-1.5 rounded-full text-sm font-semibold">
@@ -261,10 +265,10 @@ const NewAdmissionForm = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           <p className="text-sm font-semibold text-primary">Application progress</p>
           <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
-            {["Choose session", "Your details", "Documents", "Submit"].map((step, index) => <div key={step} className="space-y-1"><span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full font-bold ${index === 0 ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>{index + 1}</span><span className={index === 0 ? "font-medium text-primary" : "text-muted-foreground"}>{step}</span></div>)}
+            {["Choose session", "Your details", "Documents", "Submit"].map((step, index) => <div key={step} className="space-y-1"><span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{index + 1}</span><span className={index === 0 ? "font-medium text-primary" : "text-muted-foreground"}>{step}</span></div>)}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">Fields marked with * are required. Your documents are stored in the existing private school storage.</p>
         </div>
@@ -385,7 +389,7 @@ const NewAdmissionForm = () => {
 
         {/* Form Filled in by */}
         <SectionCard title="Form Details">
-          <FormField label="Form Filled in by" name="form_filled_by" required />
+          <div className="space-y-2"><Label htmlFor="form_filled_by">Form Filled in by <span className="text-destructive">*</span></Label><Input id="form_filled_by" name="form_filled_by" value={formFilledBy} onChange={(event) => setFormFilledBy(event.target.value)} required /></div>
         </SectionCard>
 
         {/* Fees */}

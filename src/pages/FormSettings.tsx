@@ -32,6 +32,8 @@ const FormSettings = () => {
   const [admitCardInstructions, setAdmitCardInstructions] = useState("");
   const [headMasterSignUrl, setHeadMasterSignUrl] = useState("");
   const [examControllerSignUrl, setExamControllerSignUrl] = useState("");
+  const [defaultAdmissionFee, setDefaultAdmissionFee] = useState("0");
+  const [defaultMonthlyFee, setDefaultMonthlyFee] = useState("0");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState<"head_master" | "exam_controller" | null>(null);
@@ -50,12 +52,18 @@ const FormSettings = () => {
         const fields = data.find(d => d.setting_key === "admission_form_fields");
         const instructions = data.find(d => d.setting_key === "admit_card_instructions");
         const signatures = data.find(d => d.setting_key === "signature_images");
+        const feeDefaults = data.find(d => d.setting_key === "sync_fee_defaults");
         if (fields) setFieldVisibility(fields.setting_value as Record<string, boolean>);
         if (instructions) setAdmitCardInstructions((instructions.setting_value as any)?.text || "");
         if (signatures) {
           const sigVal = signatures.setting_value as any;
           setHeadMasterSignUrl(sigVal?.head_master || "");
           setExamControllerSignUrl(sigVal?.exam_controller || "");
+        }
+        if (feeDefaults) {
+          const value = feeDefaults.setting_value as { admission_fee?: unknown; monthly_fee?: unknown };
+          setDefaultAdmissionFee(String(value?.admission_fee ?? "0"));
+          setDefaultMonthlyFee(String(value?.monthly_fee ?? "0"));
         }
       }
       setLoading(false);
@@ -68,16 +76,28 @@ const FormSettings = () => {
   };
 
   const handleSave = async () => {
+    const admissionFee = Number(defaultAdmissionFee);
+    const monthlyFee = Number(defaultMonthlyFee);
+    if (!Number.isFinite(admissionFee) || admissionFee < 0 || !Number.isFinite(monthlyFee) || monthlyFee < 0) {
+      toast({ title: "Check default fees", description: "Fee defaults must be zero or a positive number.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
-      await Promise.all([
+      const results = await Promise.all([
         supabase.from("form_settings").update({ setting_value: fieldVisibility }).eq("setting_key", "admission_form_fields"),
         supabase.from("form_settings").update({ setting_value: { text: sanitizeInstructions(admitCardInstructions) } }).eq("setting_key", "admit_card_instructions"),
         supabase.from("form_settings").upsert({
           setting_key: "signature_images",
           setting_value: { head_master: headMasterSignUrl, exam_controller: examControllerSignUrl },
         }, { onConflict: "setting_key" }),
+        supabase.from("form_settings").upsert({
+          setting_key: "sync_fee_defaults",
+          setting_value: { admission_fee: admissionFee, monthly_fee: monthlyFee },
+        }, { onConflict: "setting_key" }),
       ]);
+      const failed = results.find(result => result.error);
+      if (failed?.error) throw failed.error;
       toast({ title: "Settings saved!" });
     } catch (err: any) {
       toast({ title: "Error", description: getSafeErrorMessage(err), variant: "destructive" });
@@ -134,6 +154,17 @@ const FormSettings = () => {
                 />
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-primary">Add to System Fee Defaults</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="default-admission-fee">Admission Fee (₹)</Label><Input id="default-admission-fee" type="number" min="0" step="0.01" value={defaultAdmissionFee} onChange={event => setDefaultAdmissionFee(event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="default-monthly-fee">Monthly Fee (₹)</Label><Input id="default-monthly-fee" type="number" min="0" step="0.01" value={defaultMonthlyFee} onChange={event => setDefaultMonthlyFee(event.target.value)} /></div>
+            <p className="text-sm text-muted-foreground sm:col-span-2">These values prefill the per-student EduNest/Fee Portal sync dialog. Editing a dialog value does not change these defaults.</p>
           </CardContent>
         </Card>
 

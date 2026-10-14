@@ -32,11 +32,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { email, password } = await req.json();
+      const { full_name, email, password } = await req.json();
 
       // Input validation
-      if (!email || !password) {
-        return new Response(JSON.stringify({ error: "Email and password required" }), {
+      if (typeof full_name !== "string" || !full_name.trim() || full_name.trim().length > 100 || !email || !password) {
+        return new Response(JSON.stringify({ error: "Admin name, email, and password are required" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
         email,
         password,
         email_confirm: true,
+        user_metadata: { full_name: full_name.trim() },
       });
 
       if (authError) {

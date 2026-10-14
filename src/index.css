@@ -79,6 +79,21 @@
 }
 
 @layer base {
+  html {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    scrollbar-gutter: stable;
+  }
+
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
   * {
     @apply border-border;
   }
@@ -87,6 +102,14 @@
     @apply bg-background text-foreground;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
+}
+
+[data-radix-popper-content-wrapper] {
+  max-width: calc(100vw - 1rem);
+}
+
+body[data-scroll-locked] {
+  overflow-x: clip !important;
 }
 
 /* Print styles for A4 form */

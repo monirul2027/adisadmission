@@ -74,10 +74,14 @@ export const getSignedUrl = async (
 
 export const SESSION_OPTIONS = ["2025", "2026", "2027", "2028", "2029", "2030"];
 export const CLASS_OPTIONS = ["LKG", "UKG", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-
 /** Strip any legacy "Class " prefix so stored/displayed values are bare (LKG, UKG, I, II, ...). */
 export const stripClassPrefix = (value: string | null | undefined): string =>
   (value || "").replace(/^Class\s+/i, "").trim();
+export const normalizeClass = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  const bare = value.trim().replace(/^class\s+/i, "").toUpperCase();
+  return CLASS_OPTIONS.includes(bare) ? bare : "";
+};
 export const SEX_OPTIONS = ["Male", "Female", "Other"];
 export const RELIGION_OPTIONS = ["Islam", "Hinduism", "Christianity", "Sikhism", "Buddhism", "Jainism", "Other"];
 

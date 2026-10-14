@@ -8,7 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, ArrowLeft, Upload, ImagePlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, uploadFile } from "@/lib/supabase-helpers";
+import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, uploadFile, normalizeClass } from "@/lib/supabase-helpers";
+import { getAccountFullName } from "@/lib/auth-flow";
 import { compressImage } from "@/lib/image-compressor";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
@@ -26,12 +27,14 @@ const AdmissionTestForm = () => {
   const [applyingClass, setApplyingClass] = useState("");
   const [studentSig, setStudentSig] = useState<File | null>(null);
   const [optimizingSignature, setOptimizingSignature] = useState(false);
+  const [formFilledBy, setFormFilledBy] = useState("");
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session: authSession } } = await supabase.auth.getSession();
       if (!authSession) { navigate("/student/login"); return; }
       setUserId(authSession.user.id);
+      setFormFilledBy(getAccountFullName(authSession.user));
       const role = await checkUserRole(authSession.user.id);
       setIsAdmin(role === "admin");
     };
@@ -85,7 +88,7 @@ const AdmissionTestForm = () => {
         user_id: userId,
         test_id: generatedId,
         session,
-        applying_for_class: applyingClass.replace(/^Class\s+/i, "").trim(),
+        applying_for_class: normalizeClass(applyingClass),
         student_name: get("student_name"),
         father_name: get("father_name"),
         occupation: get("occupation"),
@@ -100,11 +103,9 @@ const AdmissionTestForm = () => {
         present_school: get("present_school"),
         present_class: get("present_class"),
         student_signature_url: studentSigUrl,
+        form_filled_by: get("form_filled_by"),
+        status: "Pending",
       };
-
-      if (isAdmin) {
-        insertData.status = "Approved";
-      }
 
       const { error } = await supabase.from("admission_tests").insert(insertData);
       if (error) throw error;
@@ -203,6 +204,10 @@ const AdmissionTestForm = () => {
             <FormField label="Present School" name="present_school" />
             <FormField label="Present Class" name="present_class" />
           </div>
+        </SectionCard>
+
+        <SectionCard title="Form Details">
+          <div className="space-y-2"><Label htmlFor="test-form-filled-by">Form Filled in by</Label><Input id="test-form-filled-by" name="form_filled_by" value={formFilledBy} onChange={(event) => setFormFilledBy(event.target.value)} /></div>
         </SectionCard>
 
         <SectionCard title="Student Signature (Optional)">

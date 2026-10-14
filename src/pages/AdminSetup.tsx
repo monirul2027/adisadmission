@@ -10,7 +10,9 @@ import { ShieldCheck, Loader2 } from "lucide-react";
 
 const AdminSetup = () => {
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const { toast } = useToast();
@@ -37,10 +39,18 @@ const AdminSetup = () => {
       toast({ title: "Error", description: "Password must be at least 8 characters.", variant: "destructive" });
       return;
     }
+    if (!fullName.trim()) {
+      toast({ title: "Error", description: "Admin full name is required.", variant: "destructive" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-setup", {
-        body: { email, password },
+        body: { full_name: fullName.trim(), email, password },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -72,12 +82,20 @@ const AdminSetup = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="full-name">Admin Full Name</Label>
+      <Input id="full-name" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} required maxLength={100} />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="email">Admin Email</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+              <Input id="password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               <ShieldCheck className="mr-2 h-4 w-4" />

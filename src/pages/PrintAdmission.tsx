@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { getSignedUrl, checkUserRole } from "@/lib/supabase-helpers";
+import { getSignedUrl, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
 import { toast } from "@/hooks/use-toast";
 
 const waitForImages = (container: HTMLElement): Promise<void> => {
@@ -116,7 +116,7 @@ const PrintAdmission = () => {
               <PrintTable rows={[
                 ["Full Name", app.full_name],
                 ["Father's Name", app.father_name],
-                ["Class Applied", app.desired_class],
+            ["Class Applied", normalizeClass(app.desired_class) || app.desired_class],
                 ["Date of Birth", app.date_of_birth],
                 ["Sex", app.sex],
                 ["Religion", app.religion],

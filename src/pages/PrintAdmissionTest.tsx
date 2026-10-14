@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { getSignedUrl, checkUserRole } from "@/lib/supabase-helpers";
+import { getSignedUrl, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
 import { toast } from "@/hooks/use-toast";
 
 const PrintHeader = () => (
@@ -83,7 +83,7 @@ const PrintAdmissionTest = () => {
               ["Father's Name", test.father_name],
               ["Occupation", test.occupation || "—"],
               ["Session", test.session],
-              ["Applying for Class", test.applying_for_class],
+              ["Applying for Class", normalizeClass(test.applying_for_class) || test.applying_for_class],
               ["Present School", test.present_school || "—"],
               ["Present Class", test.present_class || "—"],
             ].map(([label, value], i) => (

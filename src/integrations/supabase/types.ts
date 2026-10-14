@@ -38,6 +38,7 @@ export type Database = {
           created_at: string
           dist: string | null
           father_name: string
+          form_filled_by: string | null
           id: string
           landmark: string | null
           mobile_no: string
@@ -63,6 +64,7 @@ export type Database = {
           created_at?: string
           dist?: string | null
           father_name: string
+          form_filled_by?: string | null
           id?: string
           landmark?: string | null
           mobile_no: string
@@ -88,6 +90,7 @@ export type Database = {
           created_at?: string
           dist?: string | null
           father_name?: string
+          form_filled_by?: string | null
           id?: string
           landmark?: string | null
           mobile_no?: string
@@ -130,7 +133,14 @@ export type Database = {
           guardian_signature_url: string | null
           health_issue: string | null
           id: string
+          fee_sync_admission_fee: number
+          fee_sync_error: string | null
+          fee_sync_monthly_fee: number
+          fee_sync_roll_number: string | null
+          fee_sync_section: string | null
+          fee_sync_status: string
           is_synced: boolean
+          is_fee_synced: boolean
           landmark: string | null
           last_attended_class: string | null
           last_institution: string | null
@@ -182,7 +192,14 @@ export type Database = {
           guardian_signature_url?: string | null
           health_issue?: string | null
           id?: string
+          fee_sync_admission_fee?: number
+          fee_sync_error?: string | null
+          fee_sync_monthly_fee?: number
+          fee_sync_roll_number?: string | null
+          fee_sync_section?: string | null
+          fee_sync_status?: string
           is_synced?: boolean
+          is_fee_synced?: boolean
           landmark?: string | null
           last_attended_class?: string | null
           last_institution?: string | null
@@ -234,7 +251,14 @@ export type Database = {
           guardian_signature_url?: string | null
           health_issue?: string | null
           id?: string
+          fee_sync_admission_fee?: number
+          fee_sync_error?: string | null
+          fee_sync_monthly_fee?: number
+          fee_sync_roll_number?: string | null
+          fee_sync_section?: string | null
+          fee_sync_status?: string
           is_synced?: boolean
+          is_fee_synced?: boolean
           landmark?: string | null
           last_attended_class?: string | null
           last_institution?: string | null
