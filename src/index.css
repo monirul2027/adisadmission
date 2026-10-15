@@ -83,7 +83,6 @@
     width: 100%;
     max-width: 100%;
     overflow-x: clip;
-    scrollbar-gutter: stable;
   }
 
   body,
@@ -110,6 +109,8 @@
 
 body[data-scroll-locked] {
   overflow-x: clip !important;
+  margin-right: 0 !important;
+  padding-right: 0 !important;
 }
 
 @media (max-width: 639px) {
