@@ -126,6 +126,12 @@ export type Database = {
           father_name: string
           father_occupation: string | null
           father_qualification: string | null
+          fee_sync_admission_fee: number
+          fee_sync_error: string | null
+          fee_sync_monthly_fee: number
+          fee_sync_roll_number: string | null
+          fee_sync_section: string | null
+          fee_sync_status: string
           form_filled_by: string | null
           full_name: string
           guardian_name: string | null
@@ -133,14 +139,8 @@ export type Database = {
           guardian_signature_url: string | null
           health_issue: string | null
           id: string
-          fee_sync_admission_fee: number
-          fee_sync_error: string | null
-          fee_sync_monthly_fee: number
-          fee_sync_roll_number: string | null
-          fee_sync_section: string | null
-          fee_sync_status: string
-          is_synced: boolean
           is_fee_synced: boolean
+          is_synced: boolean
           landmark: string | null
           last_attended_class: string | null
           last_institution: string | null
@@ -185,6 +185,12 @@ export type Database = {
           father_name: string
           father_occupation?: string | null
           father_qualification?: string | null
+          fee_sync_admission_fee?: number
+          fee_sync_error?: string | null
+          fee_sync_monthly_fee?: number
+          fee_sync_roll_number?: string | null
+          fee_sync_section?: string | null
+          fee_sync_status?: string
           form_filled_by?: string | null
           full_name: string
           guardian_name?: string | null
@@ -192,14 +198,8 @@ export type Database = {
           guardian_signature_url?: string | null
           health_issue?: string | null
           id?: string
-          fee_sync_admission_fee?: number
-          fee_sync_error?: string | null
-          fee_sync_monthly_fee?: number
-          fee_sync_roll_number?: string | null
-          fee_sync_section?: string | null
-          fee_sync_status?: string
-          is_synced?: boolean
           is_fee_synced?: boolean
+          is_synced?: boolean
           landmark?: string | null
           last_attended_class?: string | null
           last_institution?: string | null
@@ -244,6 +244,12 @@ export type Database = {
           father_name?: string
           father_occupation?: string | null
           father_qualification?: string | null
+          fee_sync_admission_fee?: number
+          fee_sync_error?: string | null
+          fee_sync_monthly_fee?: number
+          fee_sync_roll_number?: string | null
+          fee_sync_section?: string | null
+          fee_sync_status?: string
           form_filled_by?: string | null
           full_name?: string
           guardian_name?: string | null
@@ -251,14 +257,8 @@ export type Database = {
           guardian_signature_url?: string | null
           health_issue?: string | null
           id?: string
-          fee_sync_admission_fee?: number
-          fee_sync_error?: string | null
-          fee_sync_monthly_fee?: number
-          fee_sync_roll_number?: string | null
-          fee_sync_section?: string | null
-          fee_sync_status?: string
-          is_synced?: boolean
           is_fee_synced?: boolean
+          is_synced?: boolean
           landmark?: string | null
           last_attended_class?: string | null
           last_institution?: string | null
