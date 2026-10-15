@@ -5,12 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, ArrowLeft, Upload, ImagePlus, Loader2 } from "lucide-react";
+import { CheckCircle2, ArrowLeft, Upload, ImagePlus, Loader2, LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, uploadFile, normalizeClass } from "@/lib/supabase-helpers";
 import { getAccountFullName } from "@/lib/auth-flow";
-import { compressImage } from "@/lib/image-compressor";
+import ImageCropDialog from "@/components/ImageCropDialog";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionTestSchema } from "@/lib/form-validation";
@@ -28,6 +28,18 @@ const AdmissionTestForm = () => {
   const [studentSig, setStudentSig] = useState<File | null>(null);
   const [optimizingSignature, setOptimizingSignature] = useState(false);
   const [formFilledBy, setFormFilledBy] = useState("");
+  const [cropFile, setCropFile] = useState<File | null>(null);
+
+  const handleSignatureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!(/image\/(jpeg|png)/i.test(file.type) || /\.(jpe?g|png)$/i.test(file.name))) {
+      toast({ title: "Unsupported image format", description: "Choose a JPG, JPEG, or PNG image.", variant: "destructive" });
+      return;
+    }
+    setCropFile(file);
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -140,9 +152,9 @@ const AdmissionTestForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-secondary">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-secondary">
       <div className="bg-primary text-primary-foreground py-6">
-        <div className="max-w-3xl mx-auto px-4 text-center">
+        <div className="mx-auto w-full max-w-3xl px-0 text-center sm:px-4 md:px-6">
           <Button variant="ghost" size="sm" className="absolute left-4 top-4 text-primary-foreground hover:bg-white/10" onClick={() => navigate(backPath)}>
             <ArrowLeft className="mr-1 h-4 w-4" /> Back
           </Button>
@@ -155,7 +167,7 @@ const AdmissionTestForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
         <SectionCard title="Session & Class" required>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SelectField label="Session" value={session} onValueChange={setSession} options={SESSION_OPTIONS} required />
@@ -207,21 +219,16 @@ const AdmissionTestForm = () => {
         </SectionCard>
 
         <SectionCard title="Form Details">
-          <div className="space-y-2"><Label htmlFor="test-form-filled-by">Form Filled in by</Label><Input id="test-form-filled-by" name="form_filled_by" value={formFilledBy} onChange={(event) => setFormFilledBy(event.target.value)} /></div>
+          <div className="space-y-2"><Label htmlFor="test-form-filled-by">Form Filled in by</Label><Input id="test-form-filled-by" name="form_filled_by" value={formFilledBy} readOnly className="cursor-not-allowed border-dashed bg-muted text-muted-foreground" /><p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><LockKeyhole className="h-3 w-3" /> Locked to your registered account name</p></div>
         </SectionCard>
 
         <SectionCard title="Student Signature (Optional)">
           <div className="space-y-2">
             <Label>Student Signature</Label>
-            <Label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Upload from Gallery / Files<Input type="file" accept="image/jpeg,image/png,image/webp,image/*" className="sr-only" onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                try { setOptimizingSignature(true); setStudentSig(await compressImage(file, { maxSizeBytes: 250 * 1024, maxWidthOrHeight: 600 })); }
-                catch (error) { toast({ title: "Could not optimize signature", description: error instanceof Error ? error.message : "Please choose another image.", variant: "destructive" }); }
-                finally { setOptimizingSignature(false); }
-              }
-            }} /></Label>
-            <p className="text-xs text-muted-foreground">{optimizingSignature ? <span className="inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing image...</span> : "Large images are automatically optimized before upload."}</p>
+            <Label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {studentSig ? "Change Photo" : "Select Photo"}<Input type="file" accept="image/jpeg,image/png,image/jpg" className="sr-only" onChange={handleSignatureChange} /></Label>
+            <p className="text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 150 KB</p>
+            {optimizingSignature && <p className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}
+            {studentSig && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5" /><span className="max-w-40 truncate">{studentSig.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={() => setStudentSig(null)}>Remove</button></div>}
           </div>
         </SectionCard>
 
@@ -229,13 +236,14 @@ const AdmissionTestForm = () => {
           {loading ? "Submitting..." : "Submit Test Application"}
         </Button>
       </form>
+      <ImageCropDialog file={cropFile} aspectRatio={1.4} maxSizeBytes={150 * 1024} onCancel={() => setCropFile(null)} onSave={(cropped) => { setStudentSig(cropped); setCropFile(null); }} onProcessingChange={setOptimizingSignature} />
     </div>
   );
 };
 
 const SectionCard = ({ title, required, children }: { title: string; required?: boolean; children: React.ReactNode }) => (
-  <Card>
-    <CardContent className="pt-6">
+  <Card className="rounded-none border-x-0 shadow-none sm:rounded-xl sm:border-x sm:shadow-sm">
+    <CardContent className="px-4 pt-6 sm:p-6">
       <h3 className="text-lg font-semibold text-primary mb-4 border-b border-border pb-2">
         {title} {required && <span className="text-destructive text-sm">*</span>}
       </h3>

@@ -8,13 +8,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, ImagePlus } from "lucide-react";
+import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, ImagePlus, LockKeyhole } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
 import { getAccountFullName } from "@/lib/auth-flow";
-import { compressImage } from "@/lib/image-compressor";
+import ImageCropDialog from "@/components/ImageCropDialog";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionFormSchema } from "@/lib/form-validation";
@@ -40,6 +40,7 @@ const NewAdmissionForm = () => {
   const [religion, setReligion] = useState("");
   const [optimizing, setOptimizing] = useState<string | null>(null);
   const [formFilledBy, setFormFilledBy] = useState("");
+  const [cropTarget, setCropTarget] = useState<{ file: File; kind: "photo" | "document"; label?: string } | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -53,28 +54,34 @@ const NewAdmissionForm = () => {
     checkAuth();
   }, [navigate]);
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const supportedImage = (file: File) => /image\/(jpeg|png)/i.test(file.type) || /\.(jpe?g|png)$/i.test(file.name);
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (file) {
-      try {
-        setOptimizing("photo");
-        const optimized = await compressImage(file, { maxSizeBytes: 250 * 1024, maxWidthOrHeight: 600 });
-        setPhoto(optimized);
-        setPhotoPreview(URL.createObjectURL(optimized));
-      } catch (error) { toast({ title: "Could not optimize photo", description: error instanceof Error ? error.message : "Please choose another image.", variant: "destructive" }); }
-      finally { setOptimizing(null); }
+      if (!supportedImage(file)) { toast({ title: "Unsupported image format", description: "Choose a JPG, JPEG, or PNG image.", variant: "destructive" }); return; }
+      setCropTarget({ file, kind: "photo" });
     }
   };
 
-  const handleDocChange = (setter: (f: File | null) => void, label: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDocChange = (label: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (file) {
-      try {
-        setOptimizing(label);
-        setter(file.type.startsWith("image/") ? await compressImage(file, { maxSizeBytes: 900 * 1024, maxWidthOrHeight: 1024 }) : file);
-      } catch (error) { toast({ title: `Could not optimize ${label}`, description: error instanceof Error ? error.message : "Please choose another file.", variant: "destructive" }); }
-      finally { setOptimizing(null); }
+      if (!supportedImage(file)) { toast({ title: "Unsupported image format", description: "Choose a JPG, JPEG, or PNG image.", variant: "destructive" }); return; }
+      setCropTarget({ file, kind: "document", label });
     }
+  };
+
+  const saveCroppedFile = (file: File) => {
+    if (!cropTarget) return;
+    if (cropTarget.kind === "photo") {
+      setPhoto(file);
+      setPhotoPreview((previous) => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(file); });
+    } else if (cropTarget.label === "Aadhar Card") setAadharDoc(file);
+    else if (cropTarget.label === "Birth Certificate") setBirthCert(file);
+    else setGuardianSig(file);
+    setCropTarget(null);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -248,10 +255,10 @@ const NewAdmissionForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-secondary">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-secondary">
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-6">
-        <div className="max-w-3xl mx-auto px-4 text-center">
+        <div className="mx-auto w-full max-w-3xl px-0 text-center sm:px-4 md:px-6">
           <Button variant="ghost" size="sm" className="absolute left-4 top-4 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => navigate(backPath)}>
             <ArrowLeft className="mr-1 h-4 w-4" /> Back
           </Button>
@@ -264,7 +271,7 @@ const NewAdmissionForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <p className="text-sm font-semibold text-primary">Application progress</p>
           <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
@@ -279,13 +286,14 @@ const NewAdmissionForm = () => {
 
         {/* Student Photograph */}
         <SectionCard title="Student Photograph" required>
-          <div className="flex items-center gap-6">
-            <div className="h-32 w-28 border-2 border-dashed border-primary/30 rounded-lg flex items-center justify-center overflow-hidden bg-white">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="flex h-32 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-primary/30 bg-card">
               {photoPreview ? <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" /> : <Upload className="h-8 w-8 text-muted-foreground" />}
             </div>
-            <div>
-              <Label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Upload from Gallery / Files<Input type="file" accept="image/jpeg,image/png,image/webp,image/*" onChange={handlePhotoChange} className="sr-only" /></Label>
-              <p className="text-xs text-muted-foreground mt-1">{optimizing === "photo" ? <span className="inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing image...</span> : "Large photos are automatically optimized before upload."}</p>
+            <div className="min-w-0">
+              <Label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Select Photo<Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={handlePhotoChange} className="sr-only" /></Label>
+              <p className="mt-2 text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 100 KB</p>
+              {optimizing === "photo" && <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}
             </div>
           </div>
         </SectionCard>
@@ -389,7 +397,7 @@ const NewAdmissionForm = () => {
 
         {/* Form Filled in by */}
         <SectionCard title="Form Details">
-          <div className="space-y-2"><Label htmlFor="form_filled_by">Form Filled in by <span className="text-destructive">*</span></Label><Input id="form_filled_by" name="form_filled_by" value={formFilledBy} onChange={(event) => setFormFilledBy(event.target.value)} required /></div>
+          <div className="space-y-2"><Label htmlFor="form_filled_by">Form Filled in by <span className="text-destructive">*</span></Label><Input id="form_filled_by" name="form_filled_by" value={formFilledBy} readOnly required className="cursor-not-allowed border-dashed bg-muted text-muted-foreground" /><p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><LockKeyhole className="h-3 w-3" /> Locked to your registered account name</p></div>
         </SectionCard>
 
         {/* Fees */}
@@ -413,15 +421,15 @@ const NewAdmissionForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Aadhar Card</Label>
-              <GalleryInput busy={optimizing === "Aadhar Card"} file={aadharDoc} onRemove={() => setAadharDoc(null)} onChange={handleDocChange(setAadharDoc, "Aadhar Card")} />
+              <GalleryInput busy={optimizing === "Aadhar Card"} file={aadharDoc} onRemove={() => setAadharDoc(null)} onChange={handleDocChange("Aadhar Card")} />
             </div>
             <div className="space-y-2">
               <Label>Birth Certificate</Label>
-              <GalleryInput busy={optimizing === "Birth Certificate"} file={birthCert} onRemove={() => setBirthCert(null)} onChange={handleDocChange(setBirthCert, "Birth Certificate")} />
+              <GalleryInput busy={optimizing === "Birth Certificate"} file={birthCert} onRemove={() => setBirthCert(null)} onChange={handleDocChange("Birth Certificate")} />
             </div>
             <div className="space-y-2">
               <Label>Guardian's Signature</Label>
-              <GalleryInput busy={optimizing === "Guardian Signature"} file={guardianSig} onRemove={() => setGuardianSig(null)} onChange={handleDocChange(setGuardianSig, "Guardian Signature")} imagesOnly />
+              <GalleryInput busy={optimizing === "Guardian Signature"} file={guardianSig} onRemove={() => setGuardianSig(null)} onChange={handleDocChange("Guardian Signature")} imagesOnly />
             </div>
           </div>
         </SectionCard>
@@ -437,14 +445,15 @@ const NewAdmissionForm = () => {
           {loading ? "Submitting..." : "Submit Application"}
         </Button>
       </form>
+      <ImageCropDialog file={cropTarget?.file ?? null} aspectRatio={cropTarget?.kind === "photo" ? 3.5 / 4.5 : 1.4} maxSizeBytes={cropTarget?.kind === "photo" ? 100 * 1024 : 150 * 1024} onCancel={() => setCropTarget(null)} onSave={saveCroppedFile} onProcessingChange={(busy) => setOptimizing(busy && cropTarget ? cropTarget.kind === "photo" ? "photo" : cropTarget.label || "document" : null)} />
     </div>
   );
 };
 
 // Helper components
 const SectionCard = ({ title, required, children }: { title: string; required?: boolean; children: React.ReactNode }) => (
-  <Card>
-    <CardContent className="pt-6">
+  <Card className="rounded-none border-x-0 shadow-none sm:rounded-xl sm:border-x sm:shadow-sm">
+    <CardContent className="px-4 pt-6 sm:p-6">
       <h3 className="text-lg font-semibold text-primary mb-4 border-b border-border pb-2">
         {title} {required && <span className="text-destructive text-sm">*</span>}
       </h3>
@@ -506,6 +515,6 @@ const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fiel
   );
 };
 
-const GalleryInput = ({ busy, file, onChange, onRemove, imagesOnly = false }: { busy: boolean; file: File | null; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; imagesOnly?: boolean }) => <div className="space-y-2"><Label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {file ? "Change file" : "Upload from Gallery / Files"}<Input type="file" accept={imagesOnly ? "image/jpeg,image/png,image/webp,image/*" : "image/jpeg,image/png,image/webp,image/*,application/pdf"} onChange={onChange} className="sr-only" /></Label>{busy && <p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Optimizing image...</p>}{file && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-green-100 px-2 py-1 font-medium text-green-800"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /><span className="max-w-40 truncate">{file.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={onRemove}>Remove</button></div>}</div>;
+const GalleryInput = ({ busy, file, onChange, onRemove, imagesOnly = false }: { busy: boolean; file: File | null; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; imagesOnly?: boolean }) => <div className="space-y-2"><Label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {file ? "Change file" : imagesOnly ? "Select Photo" : "Select Document"}<Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={onChange} className="sr-only" /></Label><p className="text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 150 KB</p>{busy && <p className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}{file && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /><span className="max-w-40 truncate">{file.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={onRemove}>Remove</button></div>}</div>;
 
 export default NewAdmissionForm;

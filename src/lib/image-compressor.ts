@@ -20,19 +20,25 @@ const canvasBlob = (canvas: HTMLCanvasElement, quality: number) => new Promise<B
 export async function compressImage(file: File, options: ImageCompressionOptions): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
   const image = await loadImage(file);
-  const scale = Math.min(1, options.maxWidthOrHeight / Math.max(image.naturalWidth, image.naturalHeight));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Your browser does not support image optimization.");
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-  let best = await canvasBlob(canvas, options.initialQuality ?? 0.85);
-  for (const quality of [0.75, 0.6, 0.45, 0.3]) {
+  const maxDimension = Math.max(image.naturalWidth, image.naturalHeight);
+  const maxScale = Math.min(1, options.maxWidthOrHeight / maxDimension);
+  let best: Blob | null = null;
+  for (const dimensionScale of [1, 0.82, 0.66, 0.5, 0.38]) {
+    const scale = maxScale * dimensionScale;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Your browser does not support image optimization.");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    for (const quality of [options.initialQuality ?? 0.85, 0.75, 0.6, 0.45, 0.3]) {
+      const candidate = await canvasBlob(canvas, quality);
+      if (!best || candidate.size < best.size) best = candidate;
+      if (candidate.size <= options.maxSizeBytes) break;
+    }
     if (best.size <= options.maxSizeBytes) break;
-    best = await canvasBlob(canvas, quality);
   }
+  if (!best || best.size > options.maxSizeBytes) throw new Error(`This image cannot be reduced below ${Math.round(options.maxSizeBytes / 1024)} KB. Try a tighter crop.`);
   const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
   return new File([best], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
 }
