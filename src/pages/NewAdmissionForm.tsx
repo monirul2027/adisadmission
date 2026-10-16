@@ -449,7 +449,7 @@ const NewAdmissionForm = () => {
           {loading ? "Submitting..." : "Submit Application"}
         </Button>
       </form>
-      <ImageCropDialog file={cropTarget?.file ?? null} aspectRatio={cropTarget?.kind === "photo" ? 3.5 / 4.5 : 1.4} maxSizeBytes={cropTarget?.kind === "photo" ? 100 * 1024 : 150 * 1024} onCancel={() => setCropTarget(null)} onSave={saveCroppedFile} onProcessingChange={(busy) => setOptimizing(busy && cropTarget ? cropTarget.kind === "photo" ? "photo" : cropTarget.label || "document" : null)} />
+      <ImageCropDialog file={cropTarget?.file ?? null} aspectRatio={cropTarget?.kind === "photo" ? 3.5 / 4.5 : null} maxSizeBytes={cropTarget?.kind === "photo" ? 100 * 1024 : 150 * 1024} onCancel={() => setCropTarget(null)} onSave={saveCroppedFile} onProcessingChange={(busy) => setOptimizing(busy && cropTarget ? cropTarget.kind === "photo" ? "photo" : cropTarget.label || "document" : null)} />
     </div>
   );
 };
