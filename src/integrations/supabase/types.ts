@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_permissions: {
+        Row: {
+          can_approve_reject: boolean
+          can_edit_applications: boolean
+          can_edit_site: boolean
+          can_export_data: boolean
+          can_manage_settings: boolean
+          can_sync_system: boolean
+          created_at: string
+          email: string
+          full_name: string
+          invited_by: string | null
+          is_active: boolean
+          is_super_admin: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_approve_reject?: boolean
+          can_edit_applications?: boolean
+          can_edit_site?: boolean
+          can_export_data?: boolean
+          can_manage_settings?: boolean
+          can_sync_system?: boolean
+          created_at?: string
+          email: string
+          full_name: string
+          invited_by?: string | null
+          is_active?: boolean
+          is_super_admin?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_approve_reject?: boolean
+          can_edit_applications?: boolean
+          can_edit_site?: boolean
+          can_export_data?: boolean
+          can_manage_settings?: boolean
+          can_sync_system?: boolean
+          created_at?: string
+          email?: string
+          full_name?: string
+          invited_by?: string | null
+          is_active?: boolean
+          is_super_admin?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_setup: {
         Row: {
           configured_at: string
