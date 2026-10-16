@@ -86,7 +86,10 @@ const AdminDashboard = () => {
       if (role !== "admin") { navigate("/"); return; }
       const { data: permissionData } = await (supabase as any).from("admin_permissions").select("*").eq("user_id", session.user.id).maybeSingle();
       if (!permissionData?.is_active) { toast({ title: "Admin account suspended", description: "Your access was disabled by the Super Admin.", variant: "destructive" }); await supabase.auth.signOut(); navigate("/admin/login"); return; }
-      setPermissions(permissionData as AdminPermissionSet);
+      const resolved = permissionData.is_super_admin
+        ? { ...permissionData, can_approve_reject: true, can_sync_system: true, can_edit_applications: true, can_edit_site: true, can_manage_settings: true, can_export_data: true }
+        : permissionData;
+      setPermissions(resolved as AdminPermissionSet);
       if (searchParams.get("tab") === "admins" && !permissionData.is_super_admin) { setSearchParams({ tab: "admission" }); setActiveTab("admission"); }
       fetchData();
     };
