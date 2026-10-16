@@ -121,10 +121,6 @@ Deno.serve(async (req) => {
     if (!Number.isFinite(admissionFee) || admissionFee < 0 || !Number.isFinite(monthlyFee) || monthlyFee < 0) {
       return json({ error: "admission_fee and monthly_fee must be non-negative numbers" }, 400);
     }
-    // Always read the authoritative row from the database instead of trusting client data.
-    const { data, error } = await admin.from("applications").select("*").eq("id", applicationId).maybeSingle();
-    if (error || !data) return json({ error: "Application not found" }, 404);
-    if (data.status !== "Approved" || !data.student_code) return json({ error: "Application is not approved" }, 400);
 
     // Keep the existing EduNest endpoint and payload mapping. Only normalize legacy class labels.
     const className = normalizeClass(data.desired_class);
