@@ -49,6 +49,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      if (email.trim().toLowerCase() !== "alordishaislamicschool@gmail.com") {
+        return new Response(JSON.stringify({ error: "Initial Super Admin setup is reserved for the founding school account." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       if (typeof password !== "string" || password.length < 8 || password.length > 128) {
         return new Response(JSON.stringify({ error: "Password must be between 8 and 128 characters." }), {
@@ -87,11 +93,35 @@ Deno.serve(async (req) => {
       }
 
       // Remove auto-assigned student role (from trigger) and assign admin role
-      await supabase.from("user_roles").delete().eq("user_id", authData.user.id).eq("role", "student");
-      await supabase.from("user_roles").insert({
+      await supabase.from("user_roles").delete().eq("user_id", authData.user.id);
+      const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: authData.user.id,
         role: "admin",
       });
+      if (roleError) {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        await supabase.from("admin_setup").delete().eq("is_configured", true);
+        return new Response(JSON.stringify({ error: "Could not assign the initial admin role." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: permissionError } = await supabase.from("admin_permissions").insert({
+        user_id: authData.user.id,
+        full_name: full_name.trim(),
+        email: email.trim().toLowerCase(),
+        is_super_admin: true,
+      });
+      if (permissionError) {
+        await supabase.from("user_roles").delete().eq("user_id", authData.user.id);
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        await supabase.from("admin_setup").delete().eq("is_configured", true);
+        return new Response(JSON.stringify({ error: "Could not save initial administrator permissions." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

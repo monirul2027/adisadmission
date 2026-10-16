@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
+import { checkUserRole } from "@/lib/supabase-helpers";
 
 const AdminLoginPage = () => {
   const [email, setEmail] = useState("");
@@ -23,13 +24,12 @@ const AdminLoginPage = () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       // Verify admin role
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", data.user.id)
-        .eq("role", "admin")
-        .single();
-      if (!roleData) {
+      const role = await checkUserRole(data.user.id);
+      if (role === "suspended") {
+        await supabase.auth.signOut();
+        throw new Error("This admin account is suspended. Contact the Super Admin to restore access.");
+      }
+      if (role !== "admin") {
         await supabase.auth.signOut();
         throw new Error("Access denied. Admin accounts only.");
       }

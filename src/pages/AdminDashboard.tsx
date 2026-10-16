@@ -19,6 +19,8 @@ import { admissionFormSchema } from "@/lib/form-validation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import * as XLSX from "xlsx";
+import AdminStaffManagement from "@/components/AdminStaffManagement";
+import type { AdminPermissionSet } from "@/lib/admin-permissions";
 
 const ALL_CLASSES = ["All", ...CLASS_OPTIONS];
 const APP_EDIT_FIELDS: { key: string; label: string; type?: "date" | "textarea" | "class" | "session" | "sex" | "religion" }[] = [
@@ -63,6 +65,7 @@ const AdminDashboard = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "admission");
+  const [permissions, setPermissions] = useState<AdminPermissionSet | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -76,7 +79,15 @@ const AdminDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/admin/login"); return; }
       const role = await checkUserRole(session.user.id);
+      if (role === "suspended") {
+        toast({ title: "Admin account suspended", description: "Your access was disabled by the Super Admin. Contact the school administrator.", variant: "destructive" });
+        await supabase.auth.signOut(); navigate("/admin/login"); return;
+      }
       if (role !== "admin") { navigate("/"); return; }
+      const { data: permissionData } = await (supabase as any).from("admin_permissions").select("*").eq("user_id", session.user.id).maybeSingle();
+      if (!permissionData?.is_active) { toast({ title: "Admin account suspended", description: "Your access was disabled by the Super Admin.", variant: "destructive" }); await supabase.auth.signOut(); navigate("/admin/login"); return; }
+      setPermissions(permissionData as AdminPermissionSet);
+      if (searchParams.get("tab") === "admins" && !permissionData.is_super_admin) { setSearchParams({ tab: "admission" }); setActiveTab("admission"); }
       fetchData();
     };
     init();
@@ -85,6 +96,34 @@ const AdminDashboard = () => {
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!permissions?.user_id) return;
+    let checking = false;
+    const verifyActiveAccess = async () => {
+      if (checking) return;
+      checking = true;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user.id === permissions.user_id) {
+        const role = await checkUserRole(session.user.id);
+        if (role === "suspended") {
+          toast({ title: "Admin account suspended", description: "Your access was disabled by the Super Admin.", variant: "destructive" });
+          await supabase.auth.signOut();
+          navigate("/admin/login", { replace: true });
+        }
+      }
+      checking = false;
+    };
+    const onVisibility = () => { if (document.visibilityState === "visible") void verifyActiveAccess(); };
+    window.addEventListener("focus", verifyActiveAccess);
+    document.addEventListener("visibilitychange", onVisibility);
+    const interval = window.setInterval(verifyActiveAccess, 30000);
+    return () => {
+      window.removeEventListener("focus", verifyActiveAccess);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(interval);
+    };
+  }, [navigate, permissions?.user_id, toast]);
 
   const fetchData = async () => {
     const [appRes, testRes, settingsRes] = await Promise.all([
@@ -166,7 +205,7 @@ const AdminDashboard = () => {
     const { error } = await supabase.from("applications").update(update as any).eq("id", id);
     if (error) { toast({ title: "Error", description: getSafeErrorMessage(error), variant: "destructive" }); return; }
     setApplications(prev => prev.map(a => a.id === id ? { ...a, ...update } : a));
-    toast({ title: status === "Approved" ? "Student approved. Use \"Add to System\" to sync to EduNest." : "Status updated" });
+    toast({ title: status === "Approved" ? `Application ${app?.application_id || id} approved and moved to the Approved section.` : "Status updated" });
   };
 
   const updateTestStatus = async (id: string, status: string) => {
@@ -340,12 +379,13 @@ const AdminDashboard = () => {
           <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => navigate("/student/admission-test")}>
             <ClipboardList className="mr-2 h-4 w-4" /> New Test
           </Button>
-          <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => navigate("/admin/site-editor")}>
+          {permissions?.can_edit_site && <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => navigate("/admin/site-editor")}>
             <Settings className="mr-2 h-4 w-4" /> Site Content Editor
-          </Button>
-          <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => navigate("/admin/settings")}>
+          </Button>}
+          {permissions?.can_manage_settings && <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => navigate("/admin/settings")}>
             <Settings className="mr-2 h-4 w-4" /> Form Settings
-          </Button>
+          </Button>}
+          {permissions?.is_super_admin && <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={() => handleTabChange("admins")}><UserRound className="mr-2 h-4 w-4" /> Admins &amp; Staff</Button>}
           <Button variant="ghost" size="sm" className="w-full text-sidebar-foreground hover:bg-sidebar-accent justify-start" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" /> Logout
           </Button>
@@ -362,8 +402,9 @@ const AdminDashboard = () => {
               <nav className="mt-5 space-y-1">
                 <Button variant={activeTab === "admission" ? "secondary" : "ghost"} className="w-full justify-start" onClick={() => { handleTabChange("admission"); setMobileNavOpen(false); }}><FileText className="mr-2 h-4 w-4" /> Applications</Button>
                 <Button variant={activeTab === "test" ? "secondary" : "ghost"} className="w-full justify-start" onClick={() => { handleTabChange("test"); setMobileNavOpen(false); }}><ClipboardList className="mr-2 h-4 w-4" /> Admission Tests</Button>
-                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate("/admin/site-editor"); setMobileNavOpen(false); }}><Settings className="mr-2 h-4 w-4" /> Site Editor</Button>
-                <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate("/admin/settings"); setMobileNavOpen(false); }}><Settings className="mr-2 h-4 w-4" /> Form Settings</Button>
+                {permissions?.can_edit_site && <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate("/admin/site-editor"); setMobileNavOpen(false); }}><Settings className="mr-2 h-4 w-4" /> Site Editor</Button>}
+                {permissions?.can_manage_settings && <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate("/admin/settings"); setMobileNavOpen(false); }}><Settings className="mr-2 h-4 w-4" /> Form Settings</Button>}
+                {permissions?.is_super_admin && <Button variant={activeTab === "admins" ? "secondary" : "ghost"} className="w-full justify-start" onClick={() => { handleTabChange("admins"); setMobileNavOpen(false); }}><UserRound className="mr-2 h-4 w-4" /> Admins &amp; Staff</Button>}
                 <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate("/student/new-admission"); setMobileNavOpen(false); }}><Plus className="mr-2 h-4 w-4" /> New Admission</Button>
                 <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate("/student/admission-test"); setMobileNavOpen(false); }}><ClipboardList className="mr-2 h-4 w-4" /> New Admission Test</Button>
                 <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate("/"); setMobileNavOpen(false); }}><Home className="mr-2 h-4 w-4" /> View Website</Button>
@@ -414,10 +455,11 @@ const AdminDashboard = () => {
           <TabsList>
             <TabsTrigger value="admission">Admissions ({filteredApps.length})</TabsTrigger>
             <TabsTrigger value="test">Admission Tests ({filteredTests.length})</TabsTrigger>
+            {permissions?.is_super_admin && <TabsTrigger value="admins">Admins &amp; Staff</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="admission">
-            <div className="flex gap-2 mb-3 flex-wrap">
+            {permissions?.can_export_data && <div className="flex gap-2 mb-3 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => exportAdmissions()}>
                 <Download className="mr-1 h-4 w-4" /> Export All
               </Button>
@@ -425,7 +467,7 @@ const AdminDashboard = () => {
                 <SelectTrigger className="w-44 h-9 text-sm"><SelectValue placeholder="Export Class-wise" /></SelectTrigger>
                 <SelectContent>{CLASS_OPTIONS.map(cls => <SelectItem key={cls} value={cls}>{cls}</SelectItem>)}</SelectContent>
               </Select>
-            </div>
+            </div>}
             <div className="overflow-x-auto rounded-lg border">
               <Table>
                 <TableHeader>
@@ -462,13 +504,13 @@ const AdminDashboard = () => {
                               <DropdownMenuLabel>{app.application_id} · {app.status}</DropdownMenuLabel><DropdownMenuSeparator />
                               <DropdownMenuItem onSelect={() => window.open(`/print/admission/${app.id}?view=true`, "_blank", "noopener,noreferrer")}><Eye className="mr-2 h-4 w-4" /> View details</DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => navigate(`/print/admission/${app.id}`)}><Printer className="mr-2 h-4 w-4" /> Print application</DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => { setEditUploads([]); setEditApp({ ...app, desired_class: normalizeClass(app.desired_class) || app.desired_class }); }}><Pencil className="mr-2 h-4 w-4" /> Edit application</DropdownMenuItem>
+                              {permissions?.can_edit_applications && <DropdownMenuItem onSelect={() => { setEditUploads([]); setEditApp({ ...app, desired_class: normalizeClass(app.desired_class) || app.desired_class }); }}><Pencil className="mr-2 h-4 w-4" /> Edit application</DropdownMenuItem>}
                               <DropdownMenuSeparator />
-                              {app.status !== "Approved" && <DropdownMenuItem onSelect={() => void updateAppStatus(app.id, "Approved")}><BadgeCheck className="mr-2 h-4 w-4" /> Approve</DropdownMenuItem>}
-                              {app.status !== "Rejected" && <DropdownMenuItem onSelect={() => void updateAppStatus(app.id, "Rejected")}><Ban className="mr-2 h-4 w-4" /> Reject</DropdownMenuItem>}
-                              {app.status !== "Pending" && <DropdownMenuItem onSelect={() => void updateAppStatus(app.id, "Pending")}><Clock3 className="mr-2 h-4 w-4" /> Set pending</DropdownMenuItem>}
-                              {app.status === "Approved" && app.student_code && !app.is_synced && <DropdownMenuItem onSelect={() => { setSyncApp(app); setSection(""); setRollNumber(""); setAdmissionFee(feeDefaults.admission_fee); setMonthlyFee(feeDefaults.monthly_fee); }}><Plus className="mr-2 h-4 w-4" /> Add to System</DropdownMenuItem>}
-                              {app.status === "Approved" && app.is_synced && (app.fee_sync_status === "failed" || (app.fee_sync_status === "pending" && Boolean(app.fee_sync_error))) && <DropdownMenuItem onSelect={() => void retryFeePortal(app)}><RefreshCw className="mr-2 h-4 w-4" /> Retry Fee Portal sync</DropdownMenuItem>}
+                              {permissions?.can_approve_reject && app.status !== "Approved" && <DropdownMenuItem onSelect={() => void updateAppStatus(app.id, "Approved")}><BadgeCheck className="mr-2 h-4 w-4" /> Approve</DropdownMenuItem>}
+                              {permissions?.can_approve_reject && app.status !== "Rejected" && <DropdownMenuItem onSelect={() => void updateAppStatus(app.id, "Rejected")}><Ban className="mr-2 h-4 w-4" /> Reject</DropdownMenuItem>}
+                              {permissions?.can_approve_reject && app.status !== "Pending" && <DropdownMenuItem onSelect={() => void updateAppStatus(app.id, "Pending")}><Clock3 className="mr-2 h-4 w-4" /> Set pending</DropdownMenuItem>}
+                              {permissions?.can_sync_system && app.status === "Approved" && app.student_code && !app.is_synced && <DropdownMenuItem onSelect={() => { setSyncApp(app); setSection(""); setRollNumber(""); setAdmissionFee(feeDefaults.admission_fee); setMonthlyFee(feeDefaults.monthly_fee); }}><Plus className="mr-2 h-4 w-4" /> Add to System</DropdownMenuItem>}
+                              {permissions?.can_sync_system && app.status === "Approved" && app.is_synced && (app.fee_sync_status === "failed" || (app.fee_sync_status === "pending" && Boolean(app.fee_sync_error))) && <DropdownMenuItem onSelect={() => void retryFeePortal(app)}><RefreshCw className="mr-2 h-4 w-4" /> Retry Fee Portal sync</DropdownMenuItem>}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -481,7 +523,7 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="test">
-            <div className="flex gap-2 mb-3 flex-wrap">
+            {permissions?.can_export_data && <div className="flex gap-2 mb-3 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => exportTests()}>
                 <Download className="mr-1 h-4 w-4" /> Export All
               </Button>
@@ -489,7 +531,7 @@ const AdminDashboard = () => {
                 <SelectTrigger className="w-44 h-9 text-sm"><SelectValue placeholder="Export Class-wise" /></SelectTrigger>
                 <SelectContent>{CLASS_OPTIONS.map(cls => <SelectItem key={cls} value={cls}>{cls}</SelectItem>)}</SelectContent>
               </Select>
-            </div>
+            </div>}
             <div className="overflow-x-auto rounded-lg border">
               <Table>
                 <TableHeader>
@@ -524,11 +566,11 @@ const AdminDashboard = () => {
                             <DropdownMenuItem onSelect={() => window.open(`/print/test/${test.id}?view=true`, "_blank", "noopener,noreferrer")}><Eye className="mr-2 h-4 w-4" /> View details</DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => navigate(`/print/test/${test.id}`)}><Printer className="mr-2 h-4 w-4" /> Print application</DropdownMenuItem>
                             {test.status === "Approved" && <DropdownMenuItem onSelect={() => navigate(`/print/admit-card/${test.id}`)}><ArrowDownToLine className="mr-2 h-4 w-4" /> Print admit card</DropdownMenuItem>}
-                            <DropdownMenuItem onSelect={() => setEditTest({ ...test, applying_for_class: normalizeClass(test.applying_for_class) || test.applying_for_class })}><Pencil className="mr-2 h-4 w-4" /> Edit application</DropdownMenuItem>
+                            {permissions?.can_edit_applications && <DropdownMenuItem onSelect={() => setEditTest({ ...test, applying_for_class: normalizeClass(test.applying_for_class) || test.applying_for_class })}><Pencil className="mr-2 h-4 w-4" /> Edit application</DropdownMenuItem>}
                             <DropdownMenuSeparator />
-                            {test.status !== "Approved" && <DropdownMenuItem onSelect={() => void updateTestStatus(test.id, "Approved")}><BadgeCheck className="mr-2 h-4 w-4" /> Approve</DropdownMenuItem>}
-                            {test.status !== "Rejected" && <DropdownMenuItem onSelect={() => void updateTestStatus(test.id, "Rejected")}><Ban className="mr-2 h-4 w-4" /> Reject</DropdownMenuItem>}
-                            {test.status !== "Pending" && <DropdownMenuItem onSelect={() => void updateTestStatus(test.id, "Pending")}><Clock3 className="mr-2 h-4 w-4" /> Set pending</DropdownMenuItem>}
+                            {permissions?.can_approve_reject && test.status !== "Approved" && <DropdownMenuItem onSelect={() => void updateTestStatus(test.id, "Approved")}><BadgeCheck className="mr-2 h-4 w-4" /> Approve</DropdownMenuItem>}
+                            {permissions?.can_approve_reject && test.status !== "Rejected" && <DropdownMenuItem onSelect={() => void updateTestStatus(test.id, "Rejected")}><Ban className="mr-2 h-4 w-4" /> Reject</DropdownMenuItem>}
+                            {permissions?.can_approve_reject && test.status !== "Pending" && <DropdownMenuItem onSelect={() => void updateTestStatus(test.id, "Pending")}><Clock3 className="mr-2 h-4 w-4" /> Set pending</DropdownMenuItem>}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -538,6 +580,7 @@ const AdminDashboard = () => {
               </Table>
             </div>
           </TabsContent>
+          {permissions?.is_super_admin && <TabsContent value="admins"><AdminStaffManagement /></TabsContent>}
         </Tabs>
       </main>
 

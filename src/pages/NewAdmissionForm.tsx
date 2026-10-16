@@ -49,6 +49,10 @@ const NewAdmissionForm = () => {
       setUserId(authSession.user.id);
       setFormFilledBy(getAccountFullName(authSession.user));
       const role = await checkUserRole(authSession.user.id);
+      if (role === "suspended") {
+        toast({ title: "Admin account suspended", description: "Contact the Super Admin to restore access.", variant: "destructive" });
+        await supabase.auth.signOut(); navigate("/admin/login"); return;
+      }
       setIsAdmin(role === "admin");
     };
     checkAuth();

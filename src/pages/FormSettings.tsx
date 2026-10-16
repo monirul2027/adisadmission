@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Upload, Trash2, Home, Loader2 } from "lucide-react";
-import { checkUserRole, uploadFile } from "@/lib/supabase-helpers";
+import { checkAdminPermission, checkUserRole, uploadFile } from "@/lib/supabase-helpers";
 import { compressImage } from "@/lib/image-compressor";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 
@@ -45,7 +45,8 @@ const FormSettings = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/admin/login"); return; }
       const role = await checkUserRole(session.user.id);
-      if (role !== "admin") { navigate("/"); return; }
+      if (role !== "admin") { navigate(role === "suspended" ? "/admin/login" : "/"); return; }
+      if (!(await checkAdminPermission(session.user.id, "can_manage_settings"))) { navigate("/admin/dashboard"); return; }
 
       const { data } = await supabase.from("form_settings").select("*");
       if (data) {

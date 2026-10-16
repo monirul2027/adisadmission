@@ -94,10 +94,21 @@ export const generateIdViaEdge = async (type: string, session: string, className
   return res.data.id as string;
 };
 
-export const checkUserRole = async (userId: string): Promise<"admin" | "student" | null> => {
+export const checkUserRole = async (userId: string): Promise<"admin" | "student" | "suspended" | null> => {
   const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
   if (error || !data?.length) return null;
   const roles = data.map((row) => row.role);
-  if (roles.includes("admin")) return "admin";
+  if (roles.includes("admin")) {
+    const { data: permission } = await (supabase as any).from("admin_permissions").select("is_active").eq("user_id", userId).maybeSingle();
+    return permission?.is_active === true ? "admin" : "suspended";
+  }
   return roles.includes("student") ? "student" : null;
+};
+
+export const checkAdminPermission = async (
+  userId: string,
+  permission: "can_approve_reject" | "can_sync_system" | "can_edit_applications" | "can_edit_site" | "can_manage_settings" | "can_export_data" | "is_super_admin",
+): Promise<boolean> => {
+  const { data, error } = await (supabase as any).from("admin_permissions").select(`is_active,is_super_admin,${permission}`).eq("user_id", userId).maybeSingle();
+  return !error && data?.is_active === true && (data.is_super_admin === true || data[permission] === true);
 };

@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { checkUserRole } from "@/lib/supabase-helpers";
+import { checkAdminPermission, checkUserRole } from "@/lib/supabase-helpers";
 import { defaultSectionContent, mergeSiteSettings, siteDefaults, type ContentCard, type SiteSettings } from "@/lib/site-content";
 import { compressImage } from "@/lib/image-compressor";
 
@@ -29,7 +29,7 @@ const SiteEditor = () => {
   const orderedSections = useMemo(() => [...sections].sort((a, b) => a.order_index - b.order_index), [sections]);
   useEffect(() => { void (async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session || await checkUserRole(session.user.id) !== "admin") { navigate("/admin/login"); return; }
+    if (!session || await checkUserRole(session.user.id) !== "admin" || !(await checkAdminPermission(session.user.id, "can_edit_site"))) { navigate("/admin/login"); return; }
     const [{ data: settingsRows }, { data: sectionRows }] = await Promise.all([supabase.from("site_settings").select("key, value"), supabase.from("site_sections").select("*").order("order_index")]);
     setSettings(mergeSiteSettings(settingsRows)); setSections(sectionRows || []); setLoading(false);
   })(); }, [navigate]);

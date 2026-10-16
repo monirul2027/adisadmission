@@ -71,8 +71,13 @@ Deno.serve(async (req) => {
     if (claimsError || !userId) return json({ error: "Invalid token" }, 401);
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", userId);
-    if (!roles?.some((role) => role.role === "admin")) return json({ error: "Forbidden" }, 403);
+    const { data: permission, error: permissionError } = await admin.from("admin_permissions")
+      .select("is_active, can_sync_system, is_super_admin")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (permissionError || !permission?.is_active || !(permission.is_super_admin || permission.can_sync_system)) {
+      return json({ error: "Your account is not authorized to sync students to external systems." }, 403);
+    }
 
     const body = await req.json().catch(() => null);
     const applicationId = body?.application_id;
