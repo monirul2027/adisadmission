@@ -183,3 +183,13 @@ body[data-scroll-locked] {
     page-break-after: auto;
   }
 }
+
+/* Retro dual-tone offset-shadow action buttons (exact brand values requested) */
+.retro-btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:2.75rem; padding:.875rem 2rem; border-radius:14px; border:1.5px solid #0F2922; color:#0D1B1E; font-weight:600; font-size:16px; line-height:1.2; box-shadow:5px 6px 0 #163A32, 8px 9px 0 rgba(13,38,32,.35); transition:all 150ms ease; }
+.retro-btn:hover { transform:translateY(-2px); box-shadow:7px 8px 0 #163A32, 10px 11px 0 rgba(13,38,32,.35); }
+.retro-btn:active { transform:translateY(4px); box-shadow:1px 2px 0 #163A32, 2px 3px 0 rgba(13,38,32,.35); }
+.retro-btn:focus-visible { outline:2px solid #163A32; outline-offset:3px; }
+.retro-btn-mint { background:#E3FAEE; }
+.retro-btn-coral { background:linear-gradient(90deg,#FF6B5B 0%,#FF8E53 50%,#F9B248 100%); }
+@media (min-width:640px){ .retro-btn { font-size:18px; } }
+@media (max-width:639px){ .retro-btn { padding:.75rem 1rem; } }
