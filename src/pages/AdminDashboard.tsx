@@ -91,7 +91,7 @@ const AdminDashboard = () => {
         : permissionData;
       setPermissions(resolved as AdminPermissionSet);
       if (searchParams.get("tab") === "admins" && !permissionData.is_super_admin) { setSearchParams({ tab: "admission" }); setActiveTab("admission"); }
-      fetchData();
+      fetchData(permissionData.is_super_admin ? null : session.user.id);
     };
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -128,10 +128,19 @@ const AdminDashboard = () => {
     };
   }, [navigate, permissions?.user_id, toast]);
 
-  const fetchData = async () => {
+  const fetchData = async (scopeUserId?: string | null) => {
+    // Sub-admins: only their own submissions (also enforced by database RLS). Super Admin: all.
+    let ownerId = scopeUserId;
+    if (ownerId === undefined) {
+      if (permissions) ownerId = permissions.is_super_admin ? null : permissions.user_id;
+      else { const { data: { session } } = await supabase.auth.getSession(); ownerId = session?.user.id ?? null; }
+    }
+    let appQuery = supabase.from("applications").select("*").order("created_at", { ascending: false });
+    let testQuery = supabase.from("admission_tests").select("*").order("created_at", { ascending: false });
+    if (ownerId) { appQuery = appQuery.eq("user_id", ownerId); testQuery = testQuery.eq("user_id", ownerId); }
     const [appRes, testRes, settingsRes] = await Promise.all([
-      supabase.from("applications").select("*").order("created_at", { ascending: false }),
-      supabase.from("admission_tests").select("*").order("created_at", { ascending: false }),
+      appQuery,
+      testQuery,
       supabase.from("form_settings").select("setting_value").eq("setting_key", "sync_fee_defaults").maybeSingle(),
     ]);
     if (appRes.data) setApplications(appRes.data);
@@ -426,7 +435,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-          <div><p className="text-sm font-medium text-primary">Admissions workspace</p><h1 className="text-2xl font-bold text-primary">{filteredClass === "All" ? "All applications" : filteredClass}</h1></div>
+          <div><p className="text-sm font-medium text-primary">Admissions workspace {permissions && <span className="ml-2 inline-block rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs">{permissions.is_super_admin ? "School Master View" : "Personal Submissions"}</span>}</p><h1 className="text-2xl font-bold text-primary">{filteredClass === "All" ? "All applications" : filteredClass}</h1></div>
           <div className="flex gap-2 w-full sm:w-auto flex-wrap">
             <Select value={filteredSession} onValueChange={setFilteredSession}>
               <SelectTrigger className="w-32"><SelectValue placeholder="Session" /></SelectTrigger>
