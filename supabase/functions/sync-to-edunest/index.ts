@@ -120,7 +120,13 @@ Deno.serve(async (req) => {
     if (!["GREEN", "VIOLET", "BLUE", "ORANGE"].includes(section)) {
       return json({ error: "A valid section (GREEN, VIOLET, BLUE, ORANGE) is required" }, 400);
     }
-    const rollNumber = typeof body?.roll_number === "string" ? body.roll_number.trim().slice(0, 64) : "";
+    const rawRoll = body?.roll_number;
+    const rollNumber =
+      typeof rawRoll === "number" && Number.isFinite(rawRoll)
+        ? String(rawRoll)
+        : typeof rawRoll === "string"
+          ? rawRoll.trim().slice(0, 64)
+          : "";
     const admissionFee = Number(body?.admission_fee ?? 0);
     const monthlyFee = Number(body?.monthly_fee ?? 0);
     if (!Number.isFinite(admissionFee) || admissionFee < 0 || !Number.isFinite(monthlyFee) || monthlyFee < 0) {
@@ -142,6 +148,7 @@ Deno.serve(async (req) => {
       class_name: className,
       session_year: data.session,
       section,
+      roll_no: rollNumber || null,
     };
 
     const res = await fetch(EDUNEST_URL, {
