@@ -121,9 +121,6 @@ body[data-scroll-locked] {
     overflow-x: hidden !important;
   }
 
-  input,
-  select,
-  textarea,
   button {
     touch-action: manipulation;
   }
