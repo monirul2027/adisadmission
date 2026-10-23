@@ -13,6 +13,7 @@ const PopoverContent = React.forwardRef<
 >(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
+      onFocusOutside={(event) => event.preventDefault()}
       ref={ref}
       align={align}
       sideOffset={sideOffset}
