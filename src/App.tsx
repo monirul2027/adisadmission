@@ -19,7 +19,10 @@ import PrintAdmissionTest from "./pages/PrintAdmissionTest";
 import PrintAdmitCard from "./pages/PrintAdmitCard";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// No refetch on window focus: Android's keyboard picker blurs/focuses the window and a refetch re-renders forms.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false, refetchOnReconnect: false } },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

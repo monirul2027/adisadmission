@@ -49,8 +49,10 @@ const LandingPage = () => {
       setCanEditSite(session ? await checkAdminPermission(session.user.id, "can_edit_site") : false);
     };
     void supabase.auth.getSession().then(({ data }) => updateRole(data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) void updateRole(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Ignore silent token refreshes (fired on window focus) so the page doesn't re-render while typing.
+      if (!active) return;
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") void updateRole(session);
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
