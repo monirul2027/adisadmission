@@ -103,8 +103,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!permissions?.user_id) return;
     let checking = false;
+    const isTyping = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    };
     const verifyActiveAccess = async () => {
-      if (checking) return;
+      // Skip while a typing box is focused so the phone keyboard (and its language picker) is never disturbed.
+      if (checking || isTyping()) return;
       checking = true;
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user.id === permissions.user_id) {
@@ -118,11 +123,9 @@ const AdminDashboard = () => {
       checking = false;
     };
     const onVisibility = () => { if (document.visibilityState === "visible") void verifyActiveAccess(); };
-    window.addEventListener("focus", verifyActiveAccess);
     document.addEventListener("visibilitychange", onVisibility);
     const interval = window.setInterval(verifyActiveAccess, 30000);
     return () => {
-      window.removeEventListener("focus", verifyActiveAccess);
       document.removeEventListener("visibilitychange", onVisibility);
       window.clearInterval(interval);
     };
