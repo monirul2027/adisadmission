@@ -156,9 +156,9 @@ const AdmissionTestForm = () => {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-secondary">
-      <div className="bg-primary text-primary-foreground py-6">
-        <div className="mx-auto w-full max-w-3xl px-0 text-center sm:px-4 md:px-6">
+    <div className="relative min-h-screen w-full max-w-full overflow-x-hidden overflow-x-clip bg-secondary">
+      <div className="relative overflow-hidden bg-primary text-primary-foreground pb-6 pt-14 sm:pt-6">
+        <div className="mx-auto w-full max-w-3xl px-4 text-center break-words md:px-6">
           <Button variant="ghost" size="sm" className="absolute left-4 top-4 text-primary-foreground hover:bg-white/10" onClick={() => navigate(backPath)}>
             <ArrowLeft className="mr-1 h-4 w-4" /> Back
           </Button>
@@ -171,7 +171,7 @@ const AdmissionTestForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
+      <form onSubmit={handleSubmit} className="mx-auto w-full min-w-0 max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
         <SectionCard title="Session & Class" required>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SelectField label="Session" value={session} onValueChange={setSession} options={SESSION_OPTIONS} required />
@@ -229,10 +229,10 @@ const AdmissionTestForm = () => {
         <SectionCard title="Student Signature (Optional)">
           <div className="space-y-2">
             <Label>Student Signature</Label>
-            <Label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {studentSig ? "Change Photo" : "Select Photo"}<Input type="file" accept="image/jpeg,image/png,image/jpg" className="sr-only" onChange={handleSignatureChange} /></Label>
+            <Label className="relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {studentSig ? "Change Photo" : "Select Photo"}<Input type="file" accept="image/jpeg,image/png,image/jpg" className="sr-only" onChange={handleSignatureChange} /></Label>
             <p className="text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 150 KB</p>
             {optimizingSignature && <p className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}
-            {studentSig && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5" /><span className="max-w-40 truncate">{studentSig.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={() => setStudentSig(null)}>Remove</button></div>}
+            {studentSig && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5" /><span className="max-w-40 truncate">{studentSig.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={() => setStudentSig(null)}>Remove</button></div>}
           </div>
         </SectionCard>
 
@@ -246,7 +246,7 @@ const AdmissionTestForm = () => {
 };
 
 const SectionCard = ({ title, required, children }: { title: string; required?: boolean; children: React.ReactNode }) => (
-  <Card className="rounded-none border-x-0 shadow-none sm:rounded-xl sm:border-x sm:shadow-sm">
+  <Card className="w-full min-w-0 rounded-none border-x-0 shadow-none sm:rounded-xl sm:border-x sm:shadow-sm">
     <CardContent className="px-4 pt-6 sm:p-6">
       <h3 className="text-lg font-semibold text-primary mb-4 border-b border-border pb-2">
         {title} {required && <span className="text-destructive text-sm">*</span>}
@@ -257,7 +257,7 @@ const SectionCard = ({ title, required, children }: { title: string; required?: 
 );
 
 const FormField = ({ label, name, required, type = "text", className = "" }: { label: string; name: string; required?: boolean; type?: string; className?: string }) => (
-  <div className={cn("space-y-2", className)}>
+  <div className={cn("min-w-0 space-y-2", className)}>
     <Label htmlFor={name}>{label} {required && <span className="text-destructive">*</span>}</Label>
     <Input id={name} name={name} type={type} required={required} />
   </div>
@@ -267,7 +267,7 @@ const SelectField = ({ label, value, onValueChange, options, required }: { label
   <div className="space-y-2">
     <Label>{label} {required && <span className="text-destructive">*</span>}</Label>
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger><SelectValue placeholder={`Select ${label}`} /></SelectTrigger>
+      <SelectTrigger className="w-full min-w-0"><SelectValue placeholder={`Select ${label}`} /></SelectTrigger>
       <SelectContent>
         {options.map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
       </SelectContent>
