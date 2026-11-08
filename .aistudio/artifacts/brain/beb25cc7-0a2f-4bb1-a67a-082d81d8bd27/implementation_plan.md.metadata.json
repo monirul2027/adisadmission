@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan to add CSV export capabilities (with UTF-8 BOM support for Bengali script and active filter/class-wise scoping) to both the Admissions and Admission Tests tabs in the Admin Dashboard.",
+  "updatedAt": "2026-11-06T15:25:54.944008959Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
