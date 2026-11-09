@@ -23,7 +23,7 @@ export async function compressImage(file: File, options: ImageCompressionOptions
   const maxDimension = Math.max(image.naturalWidth, image.naturalHeight);
   const maxScale = Math.min(1, options.maxWidthOrHeight / maxDimension);
   let best: Blob | null = null;
-  for (const dimensionScale of [1, 0.82, 0.66, 0.5, 0.38]) {
+  for (const dimensionScale of [1, 0.82, 0.66, 0.5, 0.38, 0.28, 0.2]) {
     const scale = maxScale * dimensionScale;
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));

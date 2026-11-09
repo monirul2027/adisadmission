@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to add CSV export capabilities (with UTF-8 BOM support for Bengali script and active filter/class-wise scoping) to both the Admissions and Admission Tests tabs in the Admin Dashboard.",
-  "updatedAt": "2026-11-06T15:25:54.944008959Z",
-  "requestFeedback": true,
-  "userFacing": true
+  "summary":  "Implementation plan to update upload size limits (Student Photo: 70 KB, Aadhar Card: 100 KB, Birth Certificate: 100 KB, Guardian Signature: 30 KB) and enforce mutual exclusion between Aadhar Card and Birth Certificate uploads without altering any database rules, functions, or unrelated logic.",
+  "updatedAt":  "2026-11-09T08:53:40.826861112Z",
+  "requestFeedback":  true,
+  "userFacing":  true
 }

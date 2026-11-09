@@ -72,6 +72,10 @@ const NewAdmissionForm = () => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (file) {
+      if ((label === "Aadhar Card" && birthCert) || (label === "Birth Certificate" && aadharDoc)) {
+        toast({ title: "Only one document allowed", description: "Please upload either Aadhar Card or Birth Certificate, not both.", variant: "destructive" });
+        return;
+      }
       if (!supportedImage(file)) { toast({ title: "Unsupported image format", description: "Choose a JPG, JPEG, or PNG image.", variant: "destructive" }); return; }
       setCropTarget({ file, kind: "document", label });
     }
@@ -82,15 +86,24 @@ const NewAdmissionForm = () => {
     if (cropTarget.kind === "photo") {
       setPhoto(file);
       setPhotoPreview((previous) => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(file); });
-    } else if (cropTarget.label === "Aadhar Card") setAadharDoc(file);
-    else if (cropTarget.label === "Birth Certificate") setBirthCert(file);
-    else setGuardianSig(file);
+    } else if (cropTarget.label === "Aadhar Card") {
+      setAadharDoc(file);
+      setBirthCert(null);
+    } else if (cropTarget.label === "Birth Certificate") {
+      setBirthCert(file);
+      setAadharDoc(null);
+    } else setGuardianSig(file);
     setCropTarget(null);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!photo) { toast({ title: "Error", description: "Student photograph is mandatory.", variant: "destructive" }); return; }
+    if (photo.size > 70 * 1024) { toast({ title: "Error", description: "Student photograph must be 70 KB or smaller.", variant: "destructive" }); return; }
+    if (aadharDoc && birthCert) { toast({ title: "Error", description: "Upload either Aadhar Card or Birth Certificate, not both.", variant: "destructive" }); return; }
+    if (aadharDoc && aadharDoc.size > 100 * 1024) { toast({ title: "Error", description: "Aadhar Card must be 100 KB or smaller.", variant: "destructive" }); return; }
+    if (birthCert && birthCert.size > 100 * 1024) { toast({ title: "Error", description: "Birth Certificate must be 100 KB or smaller.", variant: "destructive" }); return; }
+    if (guardianSig && guardianSig.size > 30 * 1024) { toast({ title: "Error", description: "Guardian's Signature must be 30 KB or smaller.", variant: "destructive" }); return; }
     if (!session) { toast({ title: "Error", description: "Session is required.", variant: "destructive" }); return; }
     if (!userId) return;
 
@@ -105,8 +118,8 @@ const NewAdmissionForm = () => {
       if (!photoUrl) throw new Error("Photo upload failed");
 
       let aadharUrl = null, birthUrl = null, sigUrl = null;
-      if (aadharDoc) aadharUrl = await uploadFile("student-documents", aadharDoc, "aadhar");
-      if (birthCert) birthUrl = await uploadFile("student-documents", birthCert, "birth-cert");
+      if (aadharDoc && !birthCert) aadharUrl = await uploadFile("student-documents", aadharDoc, "aadhar");
+      else if (birthCert && !aadharDoc) birthUrl = await uploadFile("student-documents", birthCert, "birth-cert");
       if (guardianSig) sigUrl = await uploadFile("student-documents", guardianSig, "signatures");
       uploaded.push(
         { bucket: "student-documents", path: aadharUrl },
@@ -296,7 +309,7 @@ const NewAdmissionForm = () => {
             </div>
             <div className="min-w-0">
               <Label className="relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Select Photo<Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={handlePhotoChange} className="sr-only" /></Label>
-              <p className="mt-2 text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 100 KB</p>
+              <p className="mt-2 text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 70 KB</p>
               {optimizing === "photo" && <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}
             </div>
           </div>
@@ -421,19 +434,19 @@ const NewAdmissionForm = () => {
 
         {/* Document Uploads */}
         <SectionCard title="Supporting Documents">
-          <p className="mb-4 text-sm text-muted-foreground">Upload clear, readable copies where available. Files remain private and are only used for your admission review.</p>
+          <p className="mb-4 text-sm text-muted-foreground">Upload clear, readable copies where available (upload either Aadhar Card or Birth Certificate, not both). Files remain private and are only used for your admission review.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Aadhar Card</Label>
-              <GalleryInput busy={optimizing === "Aadhar Card"} file={aadharDoc} onRemove={() => setAadharDoc(null)} onChange={handleDocChange("Aadhar Card")} />
+              <Label>Aadhar Card <span className="text-xs font-normal text-muted-foreground">(or Birth Certificate)</span></Label>
+              <GalleryInput busy={optimizing === "Aadhar Card"} file={aadharDoc} maxSizeKB={100} disabled={Boolean(birthCert)} disabledReason="Birth Certificate selected. Remove it to upload Aadhar Card instead." onRemove={() => setAadharDoc(null)} onChange={handleDocChange("Aadhar Card")} />
             </div>
             <div className="space-y-2">
-              <Label>Birth Certificate</Label>
-              <GalleryInput busy={optimizing === "Birth Certificate"} file={birthCert} onRemove={() => setBirthCert(null)} onChange={handleDocChange("Birth Certificate")} />
+              <Label>Birth Certificate <span className="text-xs font-normal text-muted-foreground">(or Aadhar Card)</span></Label>
+              <GalleryInput busy={optimizing === "Birth Certificate"} file={birthCert} maxSizeKB={100} disabled={Boolean(aadharDoc)} disabledReason="Aadhar Card selected. Remove it to upload Birth Certificate instead." onRemove={() => setBirthCert(null)} onChange={handleDocChange("Birth Certificate")} />
             </div>
             <div className="space-y-2">
               <Label>Guardian's Signature</Label>
-              <GalleryInput busy={optimizing === "Guardian Signature"} file={guardianSig} onRemove={() => setGuardianSig(null)} onChange={handleDocChange("Guardian Signature")} imagesOnly />
+              <GalleryInput busy={optimizing === "Guardian Signature"} file={guardianSig} maxSizeKB={30} onRemove={() => setGuardianSig(null)} onChange={handleDocChange("Guardian Signature")} imagesOnly />
             </div>
           </div>
         </SectionCard>
@@ -449,7 +462,7 @@ const NewAdmissionForm = () => {
           {loading ? "Submitting..." : "Submit Application"}
         </Button>
       </form>
-      <ImageCropDialog file={cropTarget?.file ?? null} aspectRatio={cropTarget?.kind === "photo" ? 3.5 / 4.5 : null} maxSizeBytes={cropTarget?.kind === "photo" ? 100 * 1024 : 150 * 1024} onCancel={() => setCropTarget(null)} onSave={saveCroppedFile} onProcessingChange={(busy) => setOptimizing(busy && cropTarget ? cropTarget.kind === "photo" ? "photo" : cropTarget.label || "document" : null)} />
+      <ImageCropDialog file={cropTarget?.file ?? null} aspectRatio={cropTarget?.kind === "photo" ? 3.5 / 4.5 : null} maxSizeBytes={cropTarget?.kind === "photo" ? 70 * 1024 : cropTarget?.label === "Guardian Signature" ? 30 * 1024 : 100 * 1024} onCancel={() => setCropTarget(null)} onSave={saveCroppedFile} onProcessingChange={(busy) => setOptimizing(busy && cropTarget ? cropTarget.kind === "photo" ? "photo" : cropTarget.label || "document" : null)} />
     </div>
   );
 };
@@ -519,6 +532,6 @@ const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fiel
   );
 };
 
-const GalleryInput = ({ busy, file, onChange, onRemove, imagesOnly = false }: { busy: boolean; file: File | null; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; imagesOnly?: boolean }) => <div className="space-y-2"><Label className="relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {file ? "Change file" : imagesOnly ? "Select Photo" : "Select Document"}<Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={onChange} className="sr-only" /></Label><p className="text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 150 KB</p>{busy && <p className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}{file && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /><span className="max-w-40 truncate">{file.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={onRemove}>Remove</button></div>}</div>;
+const GalleryInput = ({ busy, file, onChange, onRemove, imagesOnly = false, maxSizeKB = 100, disabled = false, disabledReason }: { busy: boolean; file: File | null; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; imagesOnly?: boolean; maxSizeKB?: number; disabled?: boolean; disabledReason?: string }) => <div className="space-y-2"><Label className={cn("relative inline-flex min-h-11 items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium", disabled ? "cursor-not-allowed opacity-60 bg-muted text-muted-foreground" : "cursor-pointer hover:bg-muted")}><ImagePlus className="h-4 w-4" /> {file ? "Change file" : imagesOnly ? "Select Photo" : "Select Document"}<Input type="file" accept="image/jpeg,image/png,image/jpg" disabled={disabled} onChange={onChange} className="sr-only" /></Label><p className="text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: {maxSizeKB} KB</p>{disabled && disabledReason && <p className="text-xs text-muted-foreground">{disabledReason}</p>}{busy && <p className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}{file && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /><span className="max-w-40 truncate">{file.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={onRemove}>Remove</button></div>}</div>;
 
 export default NewAdmissionForm;
