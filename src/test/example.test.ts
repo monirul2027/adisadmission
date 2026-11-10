@@ -29,12 +29,20 @@ describe("NewAdmissionForm file size limits and single-document rule", () => {
 
   it("enforces 70 KB photo, 100 KB Aadhar/Birth Certificate, 30 KB Guardian Signature, and mutual exclusion", () => {
     const source = fs.readFileSync(formPath, "utf8");
-    expect(source).toContain('cropTarget?.kind === "photo" ? 70 * 1024 : cropTarget?.label === "Guardian Signature" ? 30 * 1024 : 100 * 1024');
+    expect(source).toContain('cropTarget.kind === "photo" ? 70 * 1024 : cropTarget.label === "Guardian Signature" ? 30 * 1024 : 100 * 1024');
     expect(source).toContain("maxSizeKB={100}");
     expect(source).toContain("maxSizeKB={30}");
     expect(source).toContain("disabled={Boolean(birthCert)}");
     expect(source).toContain("disabled={Boolean(aadharDoc)}");
     expect(source).toContain("if (aadharDoc && !birthCert)");
     expect(source).toContain("else if (birthCert && !aadharDoc)");
+  });
+
+  it("prevents Android Gboard IME dismissal on spacebar long-press", () => {
+    const source = fs.readFileSync(formPath, "utf8");
+    expect(source).not.toContain("<datalist");
+    expect(source).toContain("{cropTarget && (");
+    expect(source).toContain('autoComplete="off"');
+    expect(source).toContain("full_name: cleaned.full_name");
   });
 });

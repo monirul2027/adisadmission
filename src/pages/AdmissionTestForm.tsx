@@ -42,20 +42,24 @@ const AdmissionTestForm = () => {
   };
 
   useEffect(() => {
+    let active = true;
     const checkAuth = async () => {
       const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!active) return;
       if (!authSession) { navigate("/student/login"); return; }
       setUserId(authSession.user.id);
       setFormFilledBy(getAccountFullName(authSession.user));
       const role = await checkUserRole(authSession.user.id);
+      if (!active) return;
       if (role === "suspended") {
         toast({ title: "Admin account suspended", description: "Contact the Super Admin to restore access.", variant: "destructive" });
         await supabase.auth.signOut(); navigate("/admin/login"); return;
       }
       setIsAdmin(role === "admin");
     };
-    checkAuth();
-  }, [navigate]);
+    void checkAuth();
+    return () => { active = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -93,6 +97,7 @@ const AdmissionTestForm = () => {
         return;
       }
 
+      const cleaned = validationResult.data;
       const generatedId = await generateIdViaEdge("admission_test", session);
 
       let studentSigUrl = null;
@@ -105,21 +110,21 @@ const AdmissionTestForm = () => {
         test_id: generatedId,
         session,
         applying_for_class: normalizeClass(applyingClass),
-        student_name: get("student_name"),
-        father_name: get("father_name"),
-        occupation: get("occupation"),
-        village: get("village"),
-        po: get("po"),
-        ps: get("ps"),
-        dist: get("dist"),
-        state: get("state"),
-        landmark: get("landmark"),
-        mobile_no: get("mobile_no"),
-        whatsapp_no: get("whatsapp_no"),
-        present_school: get("present_school"),
-        present_class: get("present_class"),
+        student_name: cleaned.student_name,
+        father_name: cleaned.father_name,
+        occupation: cleaned.occupation || "",
+        village: cleaned.village || "",
+        po: cleaned.po || "",
+        ps: cleaned.ps || "",
+        dist: cleaned.dist || "",
+        state: cleaned.state || "",
+        landmark: cleaned.landmark || "",
+        mobile_no: cleaned.mobile_no,
+        whatsapp_no: cleaned.whatsapp_no || "",
+        present_school: cleaned.present_school || "",
+        present_class: cleaned.present_class || "",
         student_signature_url: studentSigUrl,
-        form_filled_by: get("form_filled_by"),
+        form_filled_by: get("form_filled_by").trim(),
         status: "Pending",
       };
 
@@ -171,7 +176,7 @@ const AdmissionTestForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="mx-auto w-full min-w-0 max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
+      <form onSubmit={handleSubmit} autoComplete="off" noValidate className="mx-auto w-full min-w-0 max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
         <SectionCard title="Session & Class" required>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SelectField label="Session" value={session} onValueChange={setSession} options={SESSION_OPTIONS} required />
@@ -194,10 +199,14 @@ const AdmissionTestForm = () => {
               onAutoFill={(fields) => {
                 const form = document.querySelector("form");
                 if (!form) return;
-                (form.querySelector('[name="po"]') as HTMLInputElement).value = fields.po;
-                (form.querySelector('[name="ps"]') as HTMLInputElement).value = fields.ps;
-                (form.querySelector('[name="dist"]') as HTMLInputElement).value = fields.dist;
-                (form.querySelector('[name="state"]') as HTMLInputElement).value = fields.state;
+                const setField = (fieldName: string, val: string) => {
+                  const el = form.querySelector(`[name="${fieldName}"]`) as HTMLInputElement | null;
+                  if (el && document.activeElement !== el) el.value = val;
+                };
+                setField("po", fields.po);
+                setField("ps", fields.ps);
+                setField("dist", fields.dist);
+                setField("state", fields.state);
               }}
             />
             <FormField label="P.O" name="po" />
@@ -240,7 +249,16 @@ const AdmissionTestForm = () => {
           {loading ? "Submitting..." : "Submit Test Application"}
         </Button>
       </form>
-      <ImageCropDialog file={cropFile} aspectRatio={1.4} maxSizeBytes={150 * 1024} onCancel={() => setCropFile(null)} onSave={(cropped) => { setStudentSig(cropped); setCropFile(null); }} onProcessingChange={setOptimizingSignature} />
+      {cropFile && (
+        <ImageCropDialog
+          file={cropFile}
+          aspectRatio={1.4}
+          maxSizeBytes={150 * 1024}
+          onCancel={() => setCropFile(null)}
+          onSave={(cropped) => { setStudentSig(cropped); setCropFile(null); }}
+          onProcessingChange={setOptimizingSignature}
+        />
+      )}
     </div>
   );
 };
@@ -259,7 +277,16 @@ const SectionCard = ({ title, required, children }: { title: string; required?: 
 const FormField = ({ label, name, required, type = "text", className = "" }: { label: string; name: string; required?: boolean; type?: string; className?: string }) => (
   <div className={cn("min-w-0 space-y-2", className)}>
     <Label htmlFor={name}>{label} {required && <span className="text-destructive">*</span>}</Label>
-    <Input id={name} name={name} type={type} required={required} />
+    <Input
+      id={name}
+      name={name}
+      type={type}
+      inputMode={type === "tel" ? "tel" : undefined}
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck={false}
+      required={required}
+    />
   </div>
 );
 
@@ -287,24 +314,40 @@ const ADDRESS_MAP: Record<string, { po: string; ps: string; dist: string; pin: s
 const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fields: { po: string; ps: string; dist: string; pin?: string; state: string }) => void }) => {
   const [value, setValue] = useState("");
   const handleChange = (val: string) => {
+    // Store 100% raw input value during typing; never trim or mutate on keystroke.
     setValue(val);
     const match = ADDRESS_MAP[val];
     if (match) onAutoFill(match);
   };
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <Label htmlFor={name}>Village</Label>
       <Input
         id={name}
         name={name}
-        list={`${name}-list`}
         value={value}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Select or type village"
       />
-      <datalist id={`${name}-list`}>
-        {VILLAGE_OPTIONS.map(v => <option key={v} value={v} />)}
-      </datalist>
+      <div className="flex flex-wrap gap-1 pt-0.5">
+        {VILLAGE_OPTIONS.map((v) => (
+          <button
+            key={v}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleChange(v)}
+            className={cn(
+              "rounded border px-2 py-0.5 text-[11px] transition-colors",
+              value === v ? "border-primary bg-primary/10 font-medium text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };

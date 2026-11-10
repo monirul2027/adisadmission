@@ -78,9 +78,31 @@ const EditorCard = ({ title, children, save, saving }: { title: string; children
 const Field = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => <div className="space-y-2"><Label>{label}</Label><Input value={value} onChange={(event) => onChange(event.target.value)} /></div>;
 const parseLines = (text: string) => text.split("\n").map((item) => item.trim()).filter(Boolean);
 const ListField = ({ label, value, onChange }: { label: string; value: string[]; onChange: (value: string[]) => void }) => {
-  const [text, setText] = useState(value.join("\n"));
-  useEffect(() => { if (parseLines(text).join("\n") !== value.join("\n")) setText(value.join("\n")); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <div className="space-y-2"><Label>{label}</Label><Textarea value={text} onChange={(event) => { setText(event.target.value); onChange(parseLines(event.target.value)); }} /></div>;
+  const [text, setText] = useState(() => value.join("\n"));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused && parseLines(text).join("\n") !== value.join("\n")) {
+      setText(value.join("\n"));
+    }
+  }, [value, focused]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Textarea
+        value={text}
+        onFocus={() => setFocused(true)}
+        onChange={(event) => {
+          const raw = event.target.value;
+          setText(raw);
+          onChange(raw.split("\n"));
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          onChange(parseLines(event.target.value));
+        }}
+      />
+    </div>
+  );
 };
 const TextField = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => <div className="space-y-2"><Label>{label}</Label><Textarea value={value} onChange={(event) => onChange(event.target.value)} /></div>;
 

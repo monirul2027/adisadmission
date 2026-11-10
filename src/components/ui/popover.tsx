@@ -10,10 +10,12 @@ const PopoverTrigger = PopoverPrimitive.Trigger;
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
+>(({ className, align = "center", sideOffset = 4, onFocusOutside, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
-      onFocusOutside={(event) => event.preventDefault()}
+      onFocusOutside={(event) => { event.preventDefault(); onFocusOutside?.(event); }}
+      onOpenAutoFocus={(event) => { event.preventDefault(); onOpenAutoFocus?.(event); }}
+      onCloseAutoFocus={(event) => { event.preventDefault(); onCloseAutoFocus?.(event); }}
       ref={ref}
       align={align}
       sideOffset={sideOffset}

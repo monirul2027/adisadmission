@@ -43,20 +43,24 @@ const NewAdmissionForm = () => {
   const [cropTarget, setCropTarget] = useState<{ file: File; kind: "photo" | "document"; label?: string } | null>(null);
 
   useEffect(() => {
+    let active = true;
     const checkAuth = async () => {
       const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!active) return;
       if (!authSession) { navigate("/student/login"); return; }
       setUserId(authSession.user.id);
       setFormFilledBy(getAccountFullName(authSession.user));
       const role = await checkUserRole(authSession.user.id);
+      if (!active) return;
       if (role === "suspended") {
         toast({ title: "Admin account suspended", description: "Contact the Super Admin to restore access.", variant: "destructive" });
         await supabase.auth.signOut(); navigate("/admin/login"); return;
       }
       setIsAdmin(role === "admin");
     };
-    checkAuth();
-  }, [navigate]);
+    void checkAuth();
+    return () => { active = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const supportedImage = (file: File) => /image\/(jpeg|png)/i.test(file.type) || /\.(jpe?g|png)$/i.test(file.name);
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,6 +173,7 @@ const NewAdmissionForm = () => {
         return;
       }
 
+      const cleaned = validationResult.data;
       const applicationId = await generateIdViaEdge("admission", session);
 
       const insertData: any = {
@@ -176,39 +181,39 @@ const NewAdmissionForm = () => {
         application_id: applicationId,
         session,
         photo_url: photoUrl,
-        full_name: get("full_name"),
-        father_name: get("father_name"),
+        full_name: cleaned.full_name,
+        father_name: cleaned.father_name,
         desired_class: normalizeClass(desiredClass),
-        present_vill: get("present_vill"),
-        present_po: get("present_po"),
-        present_ps: get("present_ps"),
-        present_dist: get("present_dist"),
-        present_pin: get("present_pin"),
-        present_state: get("present_state"),
-        mobile_no: get("mobile_no"),
-        whatsapp_no: get("whatsapp_no"),
-        permanent_vill: sameAddress ? get("present_vill") : get("permanent_vill"),
-        permanent_po: sameAddress ? get("present_po") : get("permanent_po"),
-        permanent_ps: sameAddress ? get("present_ps") : get("permanent_ps"),
-        permanent_dist: sameAddress ? get("present_dist") : get("permanent_dist"),
-        permanent_pin: sameAddress ? get("present_pin") : get("permanent_pin"),
-        permanent_state: sameAddress ? get("present_state") : get("permanent_state"),
+        present_vill: cleaned.present_vill || "",
+        present_po: cleaned.present_po || "",
+        present_ps: cleaned.present_ps || "",
+        present_dist: cleaned.present_dist || "",
+        present_pin: cleaned.present_pin || "",
+        present_state: cleaned.present_state || "",
+        mobile_no: cleaned.mobile_no,
+        whatsapp_no: cleaned.whatsapp_no || "",
+        permanent_vill: cleaned.permanent_vill || "",
+        permanent_po: cleaned.permanent_po || "",
+        permanent_ps: cleaned.permanent_ps || "",
+        permanent_dist: cleaned.permanent_dist || "",
+        permanent_pin: cleaned.permanent_pin || "",
+        permanent_state: cleaned.permanent_state || "",
         date_of_birth: dob?.toISOString().split("T")[0] || "",
         sex,
         religion,
         nationality: "INDIAN",
-        aadhar_no: get("aadhar_no"),
-        health_issue: get("health_issue"),
-        name_bengali: get("name_bengali"),
-        mother_name: get("mother_name"),
-        mother_occupation: get("mother_occupation"),
-        mother_qualification: get("mother_qualification"),
-        father_occupation: get("father_occupation"),
-        father_qualification: get("father_qualification"),
-        guardian_name: get("guardian_name"),
-        guardian_relation: get("guardian_relation"),
-        last_attended_class: get("last_attended_class"),
-        last_institution: get("last_institution"),
+        aadhar_no: cleaned.aadhar_no || "",
+        health_issue: cleaned.health_issue || "",
+        name_bengali: cleaned.name_bengali || "",
+        mother_name: cleaned.mother_name,
+        mother_occupation: cleaned.mother_occupation || "",
+        mother_qualification: cleaned.mother_qualification || "",
+        father_occupation: cleaned.father_occupation || "",
+        father_qualification: cleaned.father_qualification || "",
+        guardian_name: cleaned.guardian_name || "",
+        guardian_relation: cleaned.guardian_relation || "",
+        last_attended_class: cleaned.last_attended_class || "",
+        last_institution: cleaned.last_institution || "",
         aadhar_doc_url: aadharUrl,
         birth_cert_url: birthUrl,
         guardian_signature_url: sigUrl,
@@ -217,13 +222,13 @@ const NewAdmissionForm = () => {
       // Admin-entered fee details are retained on the application, but every
       // submission remains pending until an admin explicitly approves it.
       if (isAdmin) {
-        insertData.monthly_fees = get("monthly_fees");
-        insertData.admission_fee = get("admission_fee");
+        insertData.monthly_fees = get("monthly_fees").trim();
+        insertData.admission_fee = get("admission_fee").trim();
       }
 
       insertData.status = "Pending";
-      insertData.form_filled_by = get("form_filled_by");
-      insertData.landmark = get("landmark");
+      insertData.form_filled_by = cleaned.form_filled_by;
+      insertData.landmark = cleaned.landmark || "";
 
       // Re-confirm the session so the row is inserted as the signed-in user (RLS: auth.uid() = user_id)
       const { data: { session: authSession } } = await supabase.auth.getSession();
@@ -288,7 +293,7 @@ const NewAdmissionForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="mx-auto w-full min-w-0 max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
+      <form onSubmit={handleSubmit} autoComplete="off" noValidate className="mx-auto w-full min-w-0 max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <p className="text-sm font-semibold text-primary">Application progress</p>
           <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
@@ -337,11 +342,15 @@ const NewAdmissionForm = () => {
               onAutoFill={(fields) => {
                 const form = document.querySelector("form");
                 if (!form) return;
-                (form.querySelector('[name="present_po"]') as HTMLInputElement).value = fields.po;
-                (form.querySelector('[name="present_ps"]') as HTMLInputElement).value = fields.ps;
-                (form.querySelector('[name="present_dist"]') as HTMLInputElement).value = fields.dist;
-                (form.querySelector('[name="present_pin"]') as HTMLInputElement).value = fields.pin;
-                (form.querySelector('[name="present_state"]') as HTMLInputElement).value = fields.state;
+                const setField = (fieldName: string, val: string) => {
+                  const el = form.querySelector(`[name="${fieldName}"]`) as HTMLInputElement | null;
+                  if (el && document.activeElement !== el) el.value = val;
+                };
+                setField("present_po", fields.po);
+                setField("present_ps", fields.ps);
+                setField("present_dist", fields.dist);
+                setField("present_pin", fields.pin);
+                setField("present_state", fields.state);
               }}
             />
             <FormField label="Post Office" name="present_po" />
@@ -462,7 +471,16 @@ const NewAdmissionForm = () => {
           {loading ? "Submitting..." : "Submit Application"}
         </Button>
       </form>
-      <ImageCropDialog file={cropTarget?.file ?? null} aspectRatio={cropTarget?.kind === "photo" ? 3.5 / 4.5 : null} maxSizeBytes={cropTarget?.kind === "photo" ? 70 * 1024 : cropTarget?.label === "Guardian Signature" ? 30 * 1024 : 100 * 1024} onCancel={() => setCropTarget(null)} onSave={saveCroppedFile} onProcessingChange={(busy) => setOptimizing(busy && cropTarget ? cropTarget.kind === "photo" ? "photo" : cropTarget.label || "document" : null)} />
+      {cropTarget && (
+        <ImageCropDialog
+          file={cropTarget.file}
+          aspectRatio={cropTarget.kind === "photo" ? 3.5 / 4.5 : null}
+          maxSizeBytes={cropTarget.kind === "photo" ? 70 * 1024 : cropTarget.label === "Guardian Signature" ? 30 * 1024 : 100 * 1024}
+          onCancel={() => setCropTarget(null)}
+          onSave={saveCroppedFile}
+          onProcessingChange={(busy) => setOptimizing(busy ? (cropTarget.kind === "photo" ? "photo" : cropTarget.label || "document") : null)}
+        />
+      )}
     </div>
   );
 };
@@ -482,7 +500,16 @@ const SectionCard = ({ title, required, children }: { title: string; required?: 
 const FormField = ({ label, name, required, type = "text", className = "" }: { label: string; name: string; required?: boolean; type?: string; className?: string }) => (
   <div className={cn("min-w-0 space-y-2", className)}>
     <Label htmlFor={name}>{label} {required && <span className="text-destructive">*</span>}</Label>
-    <Input id={name} name={name} type={type} required={required} />
+    <Input
+      id={name}
+      name={name}
+      type={type}
+      inputMode={type === "tel" ? "tel" : undefined}
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck={false}
+      required={required}
+    />
   </div>
 );
 
@@ -510,24 +537,40 @@ const ADDRESS_MAP: Record<string, { po: string; ps: string; dist: string; pin: s
 const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fields: { po: string; ps: string; dist: string; pin: string; state: string }) => void }) => {
   const [value, setValue] = useState("");
   const handleChange = (val: string) => {
+    // Store 100% raw input value during typing; never trim or mutate on keystroke.
     setValue(val);
     const match = ADDRESS_MAP[val];
     if (match) onAutoFill(match);
   };
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <Label htmlFor={name}>Village</Label>
       <Input
         id={name}
         name={name}
-        list={`${name}-list`}
         value={value}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Select or type village"
       />
-      <datalist id={`${name}-list`}>
-        {VILLAGE_OPTIONS.map(v => <option key={v} value={v} />)}
-      </datalist>
+      <div className="flex flex-wrap gap-1 pt-0.5">
+        {VILLAGE_OPTIONS.map((v) => (
+          <button
+            key={v}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleChange(v)}
+            className={cn(
+              "rounded border px-2 py-0.5 text-[11px] transition-colors",
+              value === v ? "border-primary bg-primary/10 font-medium text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };
