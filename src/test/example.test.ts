@@ -45,4 +45,30 @@ describe("NewAdmissionForm file size limits and single-document rule", () => {
     expect(source).toContain('autoComplete="off"');
     expect(source).toContain("full_name: cleaned.full_name");
   });
+
+  it("uses atomic database trigger for application_id and synchronous double-tap lock", () => {
+    const source = fs.readFileSync(formPath, "utf8");
+    const testFormPath = path.resolve(__dirname, "../pages/AdmissionTestForm.tsx");
+    const testFormSource = fs.readFileSync(testFormPath, "utf8");
+    const atomicMigrationPath = path.resolve(
+      __dirname,
+      "../../supabase/migrations/20261116080000_atomic_application_id_triggers.sql",
+    );
+    const atomicSql = fs.readFileSync(atomicMigrationPath, "utf8");
+
+    expect(atomicSql).toContain("CREATE TRIGGER trg_assign_application_id");
+    expect(atomicSql).toContain("public.generate_next_id(\n      'admission',\n      COALESCE(NULLIF(BTRIM(NEW.session), ''), '2027')\n    )");
+    expect(atomicSql).toContain("CREATE TRIGGER trg_assign_admission_test_id");
+
+    expect(source).not.toContain('generateIdViaEdge("admission"');
+    expect(source).toContain("submittingRef.current");
+    expect(source).toContain(".insert(insertData)\n        .select()\n        .single()");
+    expect(source).toContain("setAppId(inserted.application_id)");
+
+    expect(testFormSource).not.toContain('generateIdViaEdge("admission_test"');
+    expect(testFormSource).toContain("submittingRef.current");
+    expect(testFormSource).toContain(".insert(insertData)\n        .select()\n        .single()");
+    expect(testFormSource).toContain("setTestId(inserted.test_id)");
+  });
 });
+

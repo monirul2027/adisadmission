@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, ArrowLeft, Upload, ImagePlus, Loader2, LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { CLASS_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, uploadFile, normalizeClass } from "@/lib/supabase-helpers";
+import type { Database } from "@/integrations/supabase/types";
+import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole, uploadFile, cleanupUploads, normalizeClass } from "@/lib/supabase-helpers";
 import { getAccountFullName } from "@/lib/auth-flow";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +20,8 @@ const AdmissionTestForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
+  const lastSubmitAttemptRef = useRef(0);
   const [submitted, setSubmitted] = useState(false);
   const [testId, setTestId] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
@@ -63,17 +66,24 @@ const AdmissionTestForm = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const now = Date.now();
+    if (loading || submittingRef.current || now - lastSubmitAttemptRef.current < 800) {
+      return;
+    }
     if (!session || !applyingClass || !userId) {
       toast({ title: "Error", description: "Session and Class are required.", variant: "destructive" });
       return;
     }
 
+    submittingRef.current = true;
+    lastSubmitAttemptRef.current = now;
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     const get = (name: string) => (fd.get(name) as string) || "";
+    const uploaded: { bucket: string; path: string | null }[] = [];
 
     try {
-      // Validate form inputs
+      // Validate form inputs before uploading files or inserting row
       const validationResult = admissionTestSchema.safeParse({
         student_name: get("student_name"),
         father_name: get("father_name"),
@@ -93,21 +103,19 @@ const AdmissionTestForm = () => {
       if (!validationResult.success) {
         const firstError = validationResult.error.errors[0];
         toast({ title: "Validation Error", description: `${firstError.path.join(".")}: ${firstError.message}`, variant: "destructive" });
-        setLoading(false);
         return;
       }
 
       const cleaned = validationResult.data;
-      const generatedId = await generateIdViaEdge("admission_test", session);
 
       let studentSigUrl = null;
       if (studentSig) {
         studentSigUrl = await uploadFile("student-documents", studentSig, "student-signatures");
+        uploaded.push({ bucket: "student-documents", path: studentSigUrl });
       }
 
-      const insertData: any = {
+      const insertData: Database["public"]["Tables"]["admission_tests"]["Insert"] = {
         user_id: userId,
-        test_id: generatedId,
         session,
         applying_for_class: normalizeClass(applyingClass),
         student_name: cleaned.student_name,
@@ -128,13 +136,24 @@ const AdmissionTestForm = () => {
         status: "Pending",
       };
 
-      const { error } = await supabase.from("admission_tests").insert(insertData);
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!authSession) throw new Error("Your session expired. Please sign in again and resubmit.");
+      insertData.user_id = authSession.user.id;
+
+      const { data: inserted, error } = await supabase
+        .from("admission_tests")
+        .insert(insertData)
+        .select()
+        .single();
       if (error) throw error;
-      setTestId(generatedId);
+      if (!inserted?.id || !inserted?.test_id) throw new Error("The test application could not be saved. Please try again.");
+      setTestId(inserted.test_id);
       setSubmitted(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      await cleanupUploads(uploaded);
       toast({ title: "Submission Failed", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };

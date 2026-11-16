@@ -131,7 +131,7 @@ export type Database = {
           status?: string
           student_name: string
           student_signature_url?: string | null
-          test_id: string
+          test_id?: string
           user_id: string
           village?: string | null
           whatsapp_no?: string | null
@@ -228,7 +228,7 @@ export type Database = {
           aadhar_doc_url?: string | null
           aadhar_no?: string | null
           admission_fee?: string | null
-          application_id: string
+          application_id?: string
           birth_cert_url?: string | null
           created_at?: string
           date_of_birth: string

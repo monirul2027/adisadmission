@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,8 @@ import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, Ima
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, generateIdViaEdge, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
+import type { Database } from "@/integrations/supabase/types";
+import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
 import { getAccountFullName } from "@/lib/auth-flow";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +24,8 @@ const NewAdmissionForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
+  const lastSubmitAttemptRef = useRef(0);
   const [submitted, setSubmitted] = useState(false);
   const [appId, setAppId] = useState("");
   const [dob, setDob] = useState<Date>();
@@ -102,6 +105,10 @@ const NewAdmissionForm = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const now = Date.now();
+    if (loading || submittingRef.current || now - lastSubmitAttemptRef.current < 800) {
+      return;
+    }
     if (!photo) { toast({ title: "Error", description: "Student photograph is mandatory.", variant: "destructive" }); return; }
     if (photo.size > 70 * 1024) { toast({ title: "Error", description: "Student photograph must be 70 KB or smaller.", variant: "destructive" }); return; }
     if (aadharDoc && birthCert) { toast({ title: "Error", description: "Upload either Aadhar Card or Birth Certificate, not both.", variant: "destructive" }); return; }
@@ -111,27 +118,15 @@ const NewAdmissionForm = () => {
     if (!session) { toast({ title: "Error", description: "Session is required.", variant: "destructive" }); return; }
     if (!userId) return;
 
+    submittingRef.current = true;
+    lastSubmitAttemptRef.current = now;
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     const get = (name: string) => (fd.get(name) as string) || "";
     const uploaded: { bucket: string; path: string | null }[] = [];
 
     try {
-      const photoUrl = await uploadFile("student-photos", photo, "photos");
-      uploaded.push({ bucket: "student-photos", path: photoUrl });
-      if (!photoUrl) throw new Error("Photo upload failed");
-
-      let aadharUrl = null, birthUrl = null, sigUrl = null;
-      if (aadharDoc && !birthCert) aadharUrl = await uploadFile("student-documents", aadharDoc, "aadhar");
-      else if (birthCert && !aadharDoc) birthUrl = await uploadFile("student-documents", birthCert, "birth-cert");
-      if (guardianSig) sigUrl = await uploadFile("student-documents", guardianSig, "signatures");
-      uploaded.push(
-        { bucket: "student-documents", path: aadharUrl },
-        { bucket: "student-documents", path: birthUrl },
-        { bucket: "student-documents", path: sigUrl },
-      );
-
-      // Validate form inputs
+      // Validate form inputs before uploading files or inserting row
       const validationResult = admissionFormSchema.safeParse({
         full_name: get("full_name"),
         father_name: get("father_name"),
@@ -169,16 +164,27 @@ const NewAdmissionForm = () => {
         const firstError = validationResult.error.errors[0];
         toast({ title: "Validation Error", description: `${firstError.path.join(".")}: ${firstError.message}`, variant: "destructive" });
         await cleanupUploads(uploaded);
-        setLoading(false);
         return;
       }
 
-      const cleaned = validationResult.data;
-      const applicationId = await generateIdViaEdge("admission", session);
+      const photoUrl = await uploadFile("student-photos", photo, "photos");
+      uploaded.push({ bucket: "student-photos", path: photoUrl });
+      if (!photoUrl) throw new Error("Photo upload failed");
 
-      const insertData: any = {
+      let aadharUrl = null, birthUrl = null, sigUrl = null;
+      if (aadharDoc && !birthCert) aadharUrl = await uploadFile("student-documents", aadharDoc, "aadhar");
+      else if (birthCert && !aadharDoc) birthUrl = await uploadFile("student-documents", birthCert, "birth-cert");
+      if (guardianSig) sigUrl = await uploadFile("student-documents", guardianSig, "signatures");
+      uploaded.push(
+        { bucket: "student-documents", path: aadharUrl },
+        { bucket: "student-documents", path: birthUrl },
+        { bucket: "student-documents", path: sigUrl },
+      );
+
+      const cleaned = validationResult.data;
+
+      const insertData: Database["public"]["Tables"]["applications"]["Insert"] = {
         user_id: userId,
-        application_id: applicationId,
         session,
         photo_url: photoUrl,
         full_name: cleaned.full_name,
@@ -238,17 +244,18 @@ const NewAdmissionForm = () => {
       const { data: inserted, error } = await supabase
         .from("applications")
         .insert(insertData)
-        .select("id")
+        .select()
         .single();
       if (error) throw error;
-      if (!inserted?.id) throw new Error("The application could not be saved. Please try again.");
-      setAppId(applicationId);
+      if (!inserted?.id || !inserted?.application_id) throw new Error("The application could not be saved. Please try again.");
+      setAppId(inserted.application_id);
       setSubmitted(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       await cleanupUploads(uploaded);
       console.error("Application submission failed:", err);
       toast({ title: "Submission Failed", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
