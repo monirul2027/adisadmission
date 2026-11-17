@@ -70,5 +70,28 @@ describe("NewAdmissionForm file size limits and single-document rule", () => {
     expect(testFormSource).toContain(".insert(insertData)\n        .select()\n        .single()");
     expect(testFormSource).toContain("setTestId(inserted.test_id)");
   });
+
+  it("implements Student Forgot Password and StudentResetPassword flow and routes", () => {
+    const loginSource = fs.readFileSync(path.resolve(__dirname, "../pages/StudentLogin.tsx"), "utf8");
+    const resetSource = fs.readFileSync(path.resolve(__dirname, "../pages/StudentResetPassword.tsx"), "utf8");
+    const appSource = fs.readFileSync(path.resolve(__dirname, "../App.tsx"), "utf8");
+
+    expect(loginSource).toContain("{!isSignUp && (");
+    expect(loginSource).toContain("Please enter your registered email first.");
+    expect(loginSource).toContain("supabase.auth.resetPasswordForEmail(normalizedEmail");
+    expect(loginSource).toContain("`${window.location.origin}/student/reset-password`");
+    expect(loginSource).toContain("Sending reset link...");
+    expect(loginSource).toContain("Check your email - A password reset link has been sent to your email address.");
+
+    expect(resetSource).toContain("PASSWORD_RECOVERY");
+    expect(resetSource).toContain("This reset link is invalid or has expired. Please request a new password reset email.");
+    expect(resetSource).toContain("supabase.auth.updateUser({ password })");
+    expect(resetSource).toContain("await supabase.auth.signOut()");
+    expect(resetSource).toContain("Password updated successfully. You can now sign in.");
+
+    expect(appSource).toContain('<Route path="/student/reset-password" element={<StudentResetPassword />} />');
+    expect(appSource).toContain('<Route path="/reset-password" element={<Navigate to="/student/reset-password" replace />} />');
+  });
 });
+
 

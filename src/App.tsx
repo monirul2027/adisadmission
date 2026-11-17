@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import LandingPage from "./pages/LandingPage";
 import StudentLogin from "./pages/StudentLogin";
+import StudentResetPassword from "./pages/StudentResetPassword";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminResetPassword from "./pages/AdminResetPassword";
 import AdminSetup from "./pages/AdminSetup";
@@ -84,6 +85,7 @@ const App = () => {
             <Route path="/" element={<LandingPage />} />
             {/* Student routes */}
             <Route path="/student/login" element={<StudentLogin />} />
+            <Route path="/student/reset-password" element={<StudentResetPassword />} />
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/student/new-admission" element={<NewAdmissionForm />} />
             <Route path="/student/admission-test" element={<AdmissionTestForm />} />
@@ -99,6 +101,7 @@ const App = () => {
             <Route path="/print/admit-card/:id" element={<PrintAdmitCard />} />
             <Route path="/print/test/:id" element={<PrintAdmissionTest />} />
             {/* Legacy redirects */}
+            <Route path="/reset-password" element={<Navigate to="/student/reset-password" replace />} />
             <Route path="/login" element={<Navigate to="/admin/login" replace />} />
             <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="*" element={<NotFound />} />

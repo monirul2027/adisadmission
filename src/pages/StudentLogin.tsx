@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Loader2 } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionPath, AUTH_DESTINATION_KEY, AUTH_KNOWN_USER_KEY, consumeAdmissionDestination, markKnownAuthUser, rememberAdmissionDestination, type AdmissionDestination } from "@/lib/auth-flow";
+
+const EMAIL_FORMAT_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const StudentLogin = () => {
   const [email, setEmail] = useState("");
@@ -16,6 +18,7 @@ const StudentLogin = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [searchParams] = useSearchParams();
   const [isSignUp, setIsSignUp] = useState(() => {
     try { return localStorage.getItem(AUTH_KNOWN_USER_KEY) !== "true"; } catch { return true; }
@@ -71,10 +74,50 @@ const StudentLogin = () => {
         if (data.user?.user_metadata?.full_name && data.user.user_metadata.full_name !== fullName) setFullName(data.user.user_metadata.full_name);
         continueToIntent();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: "Error", description: getSafeErrorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      toast({
+        title: "Email required",
+        description: "Please enter your registered email first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!EMAIL_FORMAT_REGEX.test(normalizedEmail)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setResetting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: `${window.location.origin}/student/reset-password`,
+      });
+      if (error) throw error;
+      toast({
+        title: "Check your email",
+        description: "Check your email - A password reset link has been sent to your email address.",
+      });
+    } catch (err: unknown) {
+      toast({
+        title: "Error",
+        description: getSafeErrorMessage(err),
+        variant: "destructive",
+      });
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -98,10 +141,27 @@ const StudentLogin = () => {
               <Input id="password" type="password" autoComplete={isSignUp ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={isSignUp ? 8 : undefined} />
             </div>
             {isSignUp && <div className="space-y-2"><Label htmlFor="confirm-password">Confirm Password</Label><Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} /></div>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || resetting}>
               <GraduationCap className="mr-2 h-4 w-4" />
               {loading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
             </Button>
+            {!isSignUp && (
+              <button
+                type="button"
+                className="inline-flex w-full items-center justify-center gap-1.5 text-sm text-primary underline underline-offset-4 disabled:opacity-50"
+                onClick={handleForgotPassword}
+                disabled={resetting || loading}
+              >
+                {resetting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Sending reset link...
+                  </>
+                ) : (
+                  "Forgot Password?"
+                )}
+              </button>
+            )}
             <p className="text-center text-sm text-muted-foreground">
               {isSignUp ? "Already have an account?" : "New to ADIS?"}{" "}
               <button type="button" className="text-primary underline" onClick={() => setIsSignUp(!isSignUp)}>
@@ -116,3 +176,4 @@ const StudentLogin = () => {
 };
 
 export default StudentLogin;
+
