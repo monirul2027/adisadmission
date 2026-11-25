@@ -24,6 +24,15 @@ type CameraCaptureDialogProps = {
   onCancel: () => void;
 };
 
+const SIGNATURE_GUIDE = {
+  viewWidth: 480,
+  viewHeight: 270,
+  x: 32,
+  y: 65,
+  width: 416,
+  height: 140,
+} as const;
+
 const MODE_CONFIG: Record<
   CameraCaptureMode,
   {
@@ -41,15 +50,15 @@ const MODE_CONFIG: Record<
   },
   document: {
     defaultTitle: "Capture Document",
-    defaultDescription: "Align the full document inside the frame using the rear camera, then tap Capture.",
+    defaultDescription: "Align the full document inside the portrait frame using the rear camera, then tap Capture.",
     fileName: "document.jpg",
-    viewportClass: "aspect-[4/3] max-w-[380px] max-h-[55vh]",
+    viewportClass: "aspect-[3/4] max-w-[min(340px,calc(60vh*0.75))] max-h-[60vh]",
   },
   signature: {
     defaultTitle: "Capture Signature",
     defaultDescription: "Align the signature inside the horizontal box using the rear camera, then tap Capture.",
     fileName: "signature.jpg",
-    viewportClass: "aspect-[16/9] max-w-[380px] max-h-[50vh]",
+    viewportClass: "aspect-[16/9] max-w-[min(380px,calc(50vh*16/9))] max-h-[50vh]",
   },
 };
 
@@ -215,18 +224,51 @@ export default function CameraCaptureDialog({
     setCapturing(true);
     try {
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext("2d");
-      if (!context) {
-        throw new Error("Could not capture image in this browser.");
-      }
+      const vidW = video.videoWidth;
+      const vidH = video.videoHeight;
 
-      if (shouldMirror) {
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
+      if (mode === "signature") {
+        // Strictly export only the visible signature strip cutout inside the object-cover video feed.
+        const rect = video.getBoundingClientRect();
+        const boxW = rect.width > 0 ? rect.width : SIGNATURE_GUIDE.viewWidth;
+        const boxH = rect.height > 0 ? rect.height : SIGNATURE_GUIDE.viewHeight;
+
+        const scale = Math.max(boxW / vidW, boxH / vidH);
+        const scaledW = vidW * scale;
+        const scaledH = vidH * scale;
+        const offsetX = (scaledW - boxW) / 2;
+        const offsetY = (scaledH - boxH) / 2;
+
+        const px = (SIGNATURE_GUIDE.x / SIGNATURE_GUIDE.viewWidth) * boxW;
+        const py = (SIGNATURE_GUIDE.y / SIGNATURE_GUIDE.viewHeight) * boxH;
+        const pw = (SIGNATURE_GUIDE.width / SIGNATURE_GUIDE.viewWidth) * boxW;
+        const ph = (SIGNATURE_GUIDE.height / SIGNATURE_GUIDE.viewHeight) * boxH;
+
+        const sx = Math.max(0, Math.min(vidW - 1, Math.round((px + offsetX) / scale)));
+        const sy = Math.max(0, Math.min(vidH - 1, Math.round((py + offsetY) / scale)));
+        const sWidth = Math.max(1, Math.min(vidW - sx, Math.round(pw / scale)));
+        const sHeight = Math.max(1, Math.min(vidH - sy, Math.round(ph / scale)));
+
+        canvas.width = sWidth;
+        canvas.height = sHeight;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          throw new Error("Could not capture image in this browser.");
+        }
+        context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+      } else {
+        canvas.width = vidW;
+        canvas.height = vidH;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          throw new Error("Could not capture image in this browser.");
+        }
+        if (shouldMirror) {
+          context.translate(canvas.width, 0);
+          context.scale(-1, 1);
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
@@ -324,31 +366,31 @@ export default function CameraCaptureDialog({
           {mode === "document" && (
             <svg
               aria-hidden="true"
-              viewBox="0 0 400 300"
+              viewBox="0 0 300 400"
               className="pointer-events-none absolute inset-0 h-full w-full"
               preserveAspectRatio="none"
             >
               <defs>
                 <mask id="document-box-cutout">
-                  <rect width="400" height="300" fill="white" />
-                  <rect x="28" y="24" width="344" height="252" rx="10" fill="black" />
+                  <rect width="300" height="400" fill="white" />
+                  <rect x="22" y="24" width="256" height="352" rx="10" fill="black" />
                 </mask>
               </defs>
-              <rect width="400" height="300" fill="rgba(0, 0, 0, 0.42)" mask="url(#document-box-cutout)" />
+              <rect width="300" height="400" fill="rgba(0, 0, 0, 0.42)" mask="url(#document-box-cutout)" />
               <rect
-                x="28"
+                x="22"
                 y="24"
-                width="344"
-                height="252"
+                width="256"
+                height="352"
                 rx="10"
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.45)"
                 strokeWidth="1.5"
                 strokeDasharray="6 6"
               />
-              {/* Corner alignment brackets */}
+              {/* Portrait corner alignment brackets */}
               <path
-                d="M 28 56 V 24 H 60 M 340 24 H 372 V 56 M 372 244 V 276 H 340 M 60 276 H 28 V 244"
+                d="M 22 54 V 24 H 52 M 248 24 H 278 V 54 M 278 346 V 376 H 248 M 52 376 H 22 V 346"
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.95)"
                 strokeWidth="3.5"
@@ -361,22 +403,34 @@ export default function CameraCaptureDialog({
           {mode === "signature" && (
             <svg
               aria-hidden="true"
-              viewBox="0 0 480 270"
+              viewBox={`0 0 ${SIGNATURE_GUIDE.viewWidth} ${SIGNATURE_GUIDE.viewHeight}`}
               className="pointer-events-none absolute inset-0 h-full w-full"
               preserveAspectRatio="none"
             >
               <defs>
                 <mask id="signature-strip-cutout">
-                  <rect width="480" height="270" fill="white" />
-                  <rect x="32" y="65" width="416" height="140" rx="8" fill="black" />
+                  <rect width={SIGNATURE_GUIDE.viewWidth} height={SIGNATURE_GUIDE.viewHeight} fill="white" />
+                  <rect
+                    x={SIGNATURE_GUIDE.x}
+                    y={SIGNATURE_GUIDE.y}
+                    width={SIGNATURE_GUIDE.width}
+                    height={SIGNATURE_GUIDE.height}
+                    rx="8"
+                    fill="black"
+                  />
                 </mask>
               </defs>
-              <rect width="480" height="270" fill="rgba(0, 0, 0, 0.46)" mask="url(#signature-strip-cutout)" />
               <rect
-                x="32"
-                y="65"
-                width="416"
-                height="140"
+                width={SIGNATURE_GUIDE.viewWidth}
+                height={SIGNATURE_GUIDE.viewHeight}
+                fill="rgba(0, 0, 0, 0.46)"
+                mask="url(#signature-strip-cutout)"
+              />
+              <rect
+                x={SIGNATURE_GUIDE.x}
+                y={SIGNATURE_GUIDE.y}
+                width={SIGNATURE_GUIDE.width}
+                height={SIGNATURE_GUIDE.height}
                 rx="8"
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.55)"
@@ -385,7 +439,7 @@ export default function CameraCaptureDialog({
               />
               {/* Corner alignment brackets */}
               <path
-                d="M 32 93 V 65 H 62 M 418 65 H 448 V 93 M 448 177 V 205 H 418 M 62 205 H 32 V 177"
+                d={`M ${SIGNATURE_GUIDE.x} ${SIGNATURE_GUIDE.y + 28} V ${SIGNATURE_GUIDE.y} H ${SIGNATURE_GUIDE.x + 30} M ${SIGNATURE_GUIDE.x + SIGNATURE_GUIDE.width - 30} ${SIGNATURE_GUIDE.y} H ${SIGNATURE_GUIDE.x + SIGNATURE_GUIDE.width} V ${SIGNATURE_GUIDE.y + 28} M ${SIGNATURE_GUIDE.x + SIGNATURE_GUIDE.width} ${SIGNATURE_GUIDE.y + SIGNATURE_GUIDE.height - 28} V ${SIGNATURE_GUIDE.y + SIGNATURE_GUIDE.height} H ${SIGNATURE_GUIDE.x + SIGNATURE_GUIDE.width - 30} M ${SIGNATURE_GUIDE.x + 30} ${SIGNATURE_GUIDE.y + SIGNATURE_GUIDE.height} H ${SIGNATURE_GUIDE.x} V ${SIGNATURE_GUIDE.y + SIGNATURE_GUIDE.height - 28}`}
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.95)"
                 strokeWidth="3.5"
@@ -394,10 +448,10 @@ export default function CameraCaptureDialog({
               />
               {/* Signature baseline guide */}
               <line
-                x1="60"
-                y1="172"
-                x2="420"
-                y2="172"
+                x1={SIGNATURE_GUIDE.x + 28}
+                y1={SIGNATURE_GUIDE.y + SIGNATURE_GUIDE.height - 33}
+                x2={SIGNATURE_GUIDE.x + SIGNATURE_GUIDE.width - 28}
+                y2={SIGNATURE_GUIDE.y + SIGNATURE_GUIDE.height - 33}
                 stroke="rgba(255, 255, 255, 0.5)"
                 strokeWidth="1.5"
                 strokeDasharray="4 4"
