@@ -5,13 +5,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, ArrowLeft, Upload, ImagePlus, Loader2, LockKeyhole } from "lucide-react";
+import { CheckCircle2, ArrowLeft, Upload, ImagePlus, Loader2, LockKeyhole, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole, uploadFile, cleanupUploads, normalizeClass } from "@/lib/supabase-helpers";
 import { getAccountFullName } from "@/lib/auth-flow";
 import ImageCropDialog from "@/components/ImageCropDialog";
+import CameraCaptureDialog from "@/components/CameraCaptureDialog";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionTestSchema } from "@/lib/form-validation";
@@ -32,6 +33,7 @@ const AdmissionTestForm = () => {
   const [optimizingSignature, setOptimizingSignature] = useState(false);
   const [formFilledBy, setFormFilledBy] = useState("");
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const handleSignatureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -257,7 +259,12 @@ const AdmissionTestForm = () => {
         <SectionCard title="Student Signature (Optional)">
           <div className="space-y-2">
             <Label>Student Signature</Label>
-            <Label className="relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {studentSig ? "Change Photo" : "Select Photo"}<Input type="file" accept="image/jpeg,image/png,image/jpg" className="sr-only" onChange={handleSignatureChange} /></Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> {studentSig ? "Change Photo" : "Select Photo"}<Input type="file" accept="image/jpeg,image/png,image/jpg" className="sr-only" onChange={handleSignatureChange} /></Label>
+              <Button type="button" variant="outline" className="min-h-11 gap-2 whitespace-nowrap" onClick={() => setCameraOpen(true)}>
+                <Camera className="h-4 w-4" /> Take Photo
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 150 KB</p>
             {optimizingSignature && <p className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}
             {studentSig && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5" /><span className="max-w-40 truncate">{studentSig.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={() => setStudentSig(null)}>Remove</button></div>}
@@ -268,6 +275,18 @@ const AdmissionTestForm = () => {
           {loading ? "Submitting..." : "Submit Test Application"}
         </Button>
       </form>
+      {cameraOpen && (
+        <CameraCaptureDialog
+          mode="signature"
+          title="Capture Student Signature"
+          description="Align the student's signature inside the strip box using the rear camera, then tap Capture."
+          onCancel={() => setCameraOpen(false)}
+          onCapture={(file) => {
+            setCameraOpen(false);
+            setCropFile(file);
+          }}
+        />
+      )}
       {cropFile && (
         <ImageCropDialog
           file={cropFile}

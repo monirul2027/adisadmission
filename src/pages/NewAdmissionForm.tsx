@@ -45,7 +45,11 @@ const NewAdmissionForm = () => {
   const [optimizing, setOptimizing] = useState<string | null>(null);
   const [formFilledBy, setFormFilledBy] = useState("");
   const [cropTarget, setCropTarget] = useState<{ file: File; kind: "photo" | "document"; label?: string } | null>(null);
-  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<
+    | { kind: "photo" }
+    | { kind: "document"; label: "Aadhar Card" | "Birth Certificate" | "Guardian Signature"; mode: "document" | "signature" }
+    | null
+  >(null);
 
   useEffect(() => {
     let active = true;
@@ -88,6 +92,17 @@ const NewAdmissionForm = () => {
       if (!supportedImage(file)) { toast({ title: "Unsupported image format", description: "Choose a JPG, JPEG, or PNG image.", variant: "destructive" }); return; }
       setCropTarget({ file, kind: "document", label });
     }
+  };
+
+  const openDocCamera = (
+    label: "Aadhar Card" | "Birth Certificate" | "Guardian Signature",
+    mode: "document" | "signature",
+  ) => {
+    if ((label === "Aadhar Card" && birthCert) || (label === "Birth Certificate" && aadharDoc)) {
+      toast({ title: "Only one document allowed", description: "Please upload either Aadhar Card or Birth Certificate, not both.", variant: "destructive" });
+      return;
+    }
+    setCameraTarget({ kind: "document", label, mode });
   };
 
   const saveCroppedFile = (file: File) => {
@@ -324,7 +339,7 @@ const NewAdmissionForm = () => {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Label className="relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Select Photo<Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={handlePhotoChange} className="sr-only" /></Label>
-                <Button type="button" variant="outline" className="min-h-11 gap-2 whitespace-nowrap" onClick={() => setCameraOpen(true)}>
+                <Button type="button" variant="outline" className="min-h-11 gap-2 whitespace-nowrap" onClick={() => setCameraTarget({ kind: "photo" })}>
                   <Camera className="h-4 w-4" /> Take Photo
                 </Button>
               </div>
@@ -461,15 +476,15 @@ const NewAdmissionForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Aadhar Card <span className="text-xs font-normal text-muted-foreground">(or Birth Certificate)</span></Label>
-              <GalleryInput busy={optimizing === "Aadhar Card"} file={aadharDoc} maxSizeKB={100} disabled={Boolean(birthCert)} disabledReason="Birth Certificate selected. Remove it to upload Aadhar Card instead." onRemove={() => setAadharDoc(null)} onChange={handleDocChange("Aadhar Card")} />
+              <GalleryInput busy={optimizing === "Aadhar Card"} file={aadharDoc} maxSizeKB={100} disabled={Boolean(birthCert)} disabledReason="Birth Certificate selected. Remove it to upload Aadhar Card instead." onRemove={() => setAadharDoc(null)} onChange={handleDocChange("Aadhar Card")} onTakePhoto={() => openDocCamera("Aadhar Card", "document")} />
             </div>
             <div className="space-y-2">
               <Label>Birth Certificate <span className="text-xs font-normal text-muted-foreground">(or Aadhar Card)</span></Label>
-              <GalleryInput busy={optimizing === "Birth Certificate"} file={birthCert} maxSizeKB={100} disabled={Boolean(aadharDoc)} disabledReason="Aadhar Card selected. Remove it to upload Birth Certificate instead." onRemove={() => setBirthCert(null)} onChange={handleDocChange("Birth Certificate")} />
+              <GalleryInput busy={optimizing === "Birth Certificate"} file={birthCert} maxSizeKB={100} disabled={Boolean(aadharDoc)} disabledReason="Aadhar Card selected. Remove it to upload Birth Certificate instead." onRemove={() => setBirthCert(null)} onChange={handleDocChange("Birth Certificate")} onTakePhoto={() => openDocCamera("Birth Certificate", "document")} />
             </div>
             <div className="space-y-2">
               <Label>Guardian's Signature</Label>
-              <GalleryInput busy={optimizing === "Guardian Signature"} file={guardianSig} maxSizeKB={30} onRemove={() => setGuardianSig(null)} onChange={handleDocChange("Guardian Signature")} imagesOnly />
+              <GalleryInput busy={optimizing === "Guardian Signature"} file={guardianSig} maxSizeKB={30} onRemove={() => setGuardianSig(null)} onChange={handleDocChange("Guardian Signature")} onTakePhoto={() => openDocCamera("Guardian Signature", "signature")} imagesOnly />
             </div>
           </div>
         </SectionCard>
@@ -485,12 +500,32 @@ const NewAdmissionForm = () => {
           {loading ? "Submitting..." : "Submit Application"}
         </Button>
       </form>
-      {cameraOpen && (
+      {cameraTarget && (
         <CameraCaptureDialog
-          onCancel={() => setCameraOpen(false)}
+          mode={cameraTarget.kind === "photo" ? "photo" : cameraTarget.mode}
+          title={
+            cameraTarget.kind === "photo"
+              ? "Take Student Photo"
+              : cameraTarget.label === "Guardian Signature"
+                ? "Capture Guardian's Signature"
+                : `Capture ${cameraTarget.label}`
+          }
+          description={
+            cameraTarget.kind === "photo"
+              ? undefined
+              : cameraTarget.mode === "signature"
+                ? "Align the guardian's signature inside the strip box using the rear camera, then tap Capture."
+                : `Align the ${cameraTarget.label} inside the rectangular frame using the rear camera, then tap Capture.`
+          }
+          onCancel={() => setCameraTarget(null)}
           onCapture={(file) => {
-            setCameraOpen(false);
-            setCropTarget({ file, kind: "photo" });
+            const target = cameraTarget;
+            setCameraTarget(null);
+            if (target.kind === "photo") {
+              setCropTarget({ file, kind: "photo" });
+            } else {
+              setCropTarget({ file, kind: "document", label: target.label });
+            }
           }}
         />
       )}
@@ -598,6 +633,32 @@ const VillageCombobox = ({ name, onAutoFill }: { name: string; onAutoFill: (fiel
   );
 };
 
-const GalleryInput = ({ busy, file, onChange, onRemove, imagesOnly = false, maxSizeKB = 100, disabled = false, disabledReason }: { busy: boolean; file: File | null; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; imagesOnly?: boolean; maxSizeKB?: number; disabled?: boolean; disabledReason?: string }) => <div className="space-y-2"><Label className={cn("relative inline-flex min-h-11 items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium", disabled ? "cursor-not-allowed opacity-60 bg-muted text-muted-foreground" : "cursor-pointer hover:bg-muted")}><ImagePlus className="h-4 w-4" /> {file ? "Change file" : imagesOnly ? "Select Photo" : "Select Document"}<Input type="file" accept="image/jpeg,image/png,image/jpg" disabled={disabled} onChange={onChange} className="sr-only" /></Label><p className="text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: {maxSizeKB} KB</p>{disabled && disabledReason && <p className="text-xs text-muted-foreground">{disabledReason}</p>}{busy && <p className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}{file && <div className="flex items-center gap-2 text-xs"><span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /><span className="max-w-40 truncate">{file.name}</span> · Selected</span><button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={onRemove}>Remove</button></div>}</div>;
+const GalleryInput = ({ busy, file, onChange, onRemove, onTakePhoto, imagesOnly = false, maxSizeKB = 100, disabled = false, disabledReason }: { busy: boolean; file: File | null; onChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; onTakePhoto?: () => void; imagesOnly?: boolean; maxSizeKB?: number; disabled?: boolean; disabledReason?: string }) => (
+  <div className="space-y-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <Label className={cn("relative inline-flex min-h-11 items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium", disabled ? "cursor-not-allowed opacity-60 bg-muted text-muted-foreground" : "cursor-pointer hover:bg-muted")}>
+        <ImagePlus className="h-4 w-4" /> {file ? "Change file" : imagesOnly ? "Select Photo" : "Select Document"}
+        <Input type="file" accept="image/jpeg,image/png,image/jpg" disabled={disabled} onChange={onChange} className="sr-only" />
+      </Label>
+      {onTakePhoto && (
+        <Button type="button" variant="outline" disabled={disabled} onClick={onTakePhoto} className="min-h-11 gap-2 whitespace-nowrap">
+          <Camera className="h-4 w-4" /> Take Photo
+        </Button>
+      )}
+    </div>
+    <p className="text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: {maxSizeKB} KB</p>
+    {disabled && disabledReason && <p className="text-xs text-muted-foreground">{disabledReason}</p>}
+    {busy && <p className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}
+    {file && (
+      <div className="flex items-center gap-2 text-xs">
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-medium text-primary">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span className="max-w-40 truncate">{file.name}</span> · Selected
+        </span>
+        <button type="button" className="text-muted-foreground underline hover:text-destructive" onClick={onRemove}>Remove</button>
+      </div>
+    )}
+  </div>
+);
 
 export default NewAdmissionForm;
