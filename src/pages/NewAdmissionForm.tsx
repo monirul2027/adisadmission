@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, ImagePlus, LockKeyhole } from "lucide-react";
+import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, ImagePlus, LockKeyhole, Camera } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
 import { getAccountFullName } from "@/lib/auth-flow";
 import ImageCropDialog from "@/components/ImageCropDialog";
+import CameraCaptureDialog from "@/components/CameraCaptureDialog";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionFormSchema } from "@/lib/form-validation";
@@ -44,6 +45,7 @@ const NewAdmissionForm = () => {
   const [optimizing, setOptimizing] = useState<string | null>(null);
   const [formFilledBy, setFormFilledBy] = useState("");
   const [cropTarget, setCropTarget] = useState<{ file: File; kind: "photo" | "document"; label?: string } | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -320,7 +322,12 @@ const NewAdmissionForm = () => {
               {photoPreview ? <img src={photoPreview} alt="Preview" className="h-full w-full object-cover" /> : <Upload className="h-8 w-8 text-muted-foreground" />}
             </div>
             <div className="min-w-0">
-              <Label className="relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Select Photo<Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={handlePhotoChange} className="sr-only" /></Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <Label className="relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"><ImagePlus className="h-4 w-4" /> Select Photo<Input type="file" accept="image/jpeg,image/png,image/jpg" onChange={handlePhotoChange} className="sr-only" /></Label>
+                <Button type="button" variant="outline" className="min-h-11 gap-2 whitespace-nowrap" onClick={() => setCameraOpen(true)}>
+                  <Camera className="h-4 w-4" /> Take Photo
+                </Button>
+              </div>
               <p className="mt-2 text-xs text-muted-foreground">Supported: JPG, JPEG, PNG • Max size: 70 KB</p>
               {optimizing === "photo" && <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary"><Loader2 className="h-3 w-3 animate-spin" /> Compressing...</p>}
             </div>
@@ -478,6 +485,15 @@ const NewAdmissionForm = () => {
           {loading ? "Submitting..." : "Submit Application"}
         </Button>
       </form>
+      {cameraOpen && (
+        <CameraCaptureDialog
+          onCancel={() => setCameraOpen(false)}
+          onCapture={(file) => {
+            setCameraOpen(false);
+            setCropTarget({ file, kind: "photo" });
+          }}
+        />
+      )}
       {cropTarget && (
         <ImageCropDialog
           file={cropTarget.file}
