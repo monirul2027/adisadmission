@@ -3,13 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarIcon, CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, ImagePlus, LockKeyhole, Camera } from "lucide-react";
-import { format } from "date-fns";
+import { CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, ImagePlus, LockKeyhole, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -20,6 +17,10 @@ import CameraCaptureDialog from "@/components/CameraCaptureDialog";
 import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionFormSchema } from "@/lib/form-validation";
+import { useQuery } from "@tanstack/react-query";
+import DateOfBirthInput from "@/components/DateOfBirthInput";
+import { datePartsToISO, type DateParts } from "@/lib/date-entry";
+import { isAdmissionFieldVisible, readAdmissionVisibility } from "@/lib/admission-field-visibility";
 
 const NewAdmissionForm = () => {
   const { toast } = useToast();
@@ -29,7 +30,7 @@ const NewAdmissionForm = () => {
   const lastSubmitAttemptRef = useRef(0);
   const [submitted, setSubmitted] = useState(false);
   const [appId, setAppId] = useState("");
-  const [dob, setDob] = useState<Date>();
+  const [dob, setDob] = useState<DateParts>({ day: "", month: "", year: "" });
   const [sameAddress, setSameAddress] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
@@ -70,6 +71,21 @@ const NewAdmissionForm = () => {
     void checkAuth();
     return () => { active = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visibilityQuery = useQuery({
+    queryKey: ["admission-form-fields"],
+    enabled: Boolean(userId),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("form_settings")
+        .select("setting_value").eq("setting_key", "admission_form_fields").maybeSingle();
+      if (error) throw error;
+      return readAdmissionVisibility(data?.setting_value);
+    },
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const fieldVisible = (key: string) => isAdmissionFieldVisible(visibilityQuery.data ?? {}, key);
 
   const supportedImage = (file: File) => /image\/(jpeg|png)/i.test(file.type) || /\.(jpe?g|png)$/i.test(file.name);
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +142,15 @@ const NewAdmissionForm = () => {
     if (loading || submittingRef.current || now - lastSubmitAttemptRef.current < 800) {
       return;
     }
+    if (!visibilityQuery.isSuccess) {
+      toast({ title: "Settings unavailable", description: "Please reload the admission settings before submitting.", variant: "destructive" });
+      return;
+    }
+    const dateOfBirth = datePartsToISO(dob);
+    if (!dateOfBirth) {
+      toast({ title: "Invalid Date of Birth", description: "Enter a valid date in DD/MM/YYYY format, not later than today.", variant: "destructive" });
+      return;
+    }
     if (!photo) { toast({ title: "Error", description: "Student photograph is mandatory.", variant: "destructive" }); return; }
     if (photo.size > 70 * 1024) { toast({ title: "Error", description: "Student photograph must be 70 KB or smaller.", variant: "destructive" }); return; }
     if (aadharDoc && birthCert) { toast({ title: "Error", description: "Upload either Aadhar Card or Birth Certificate, not both.", variant: "destructive" }); return; }
@@ -139,7 +164,7 @@ const NewAdmissionForm = () => {
     lastSubmitAttemptRef.current = now;
     setLoading(true);
     const fd = new FormData(e.currentTarget);
-    const get = (name: string) => (fd.get(name) as string) || "";
+    const get = (name: string) => fieldVisible(name) ? (fd.get(name) as string) || "" : "";
     const uploaded: { bucket: string; path: string | null }[] = [];
 
     try {
@@ -221,7 +246,7 @@ const NewAdmissionForm = () => {
         permanent_dist: cleaned.permanent_dist || "",
         permanent_pin: cleaned.permanent_pin || "",
         permanent_state: cleaned.permanent_state || "",
-        date_of_birth: dob?.toISOString().split("T")[0] || "",
+        date_of_birth: dateOfBirth,
         sex,
         religion,
         nationality: "INDIAN",
@@ -298,6 +323,13 @@ const NewAdmissionForm = () => {
         </Card>
       </div>
     );
+  }
+
+  if (!userId || visibilityQuery.isPending) {
+    return <div className="flex min-h-screen items-center justify-center bg-secondary text-muted-foreground">Loading admission form...</div>;
+  }
+  if (visibilityQuery.isError) {
+    return <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-secondary p-4"><p className="text-destructive">Unable to load admission form settings.</p><Button onClick={() => void visibilityQuery.refetch()}>Retry</Button></div>;
   }
 
   return (
@@ -415,38 +447,25 @@ const NewAdmissionForm = () => {
         {/* Other Details */}
         <SectionCard title="Other Details">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Date of Birth <span className="text-destructive">*</span></Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dob && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dob ? format(dob, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={dob} onSelect={setDob} captionLayout="dropdown-buttons" fromYear={2000} toYear={2026} className="pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-            </div>
+            <DateOfBirthInput value={dob} onChange={setDob} />
             <SelectField label="Sex" value={sex} onValueChange={setSex} options={SEX_OPTIONS} required />
             <SelectField label="Religion" value={religion} onValueChange={setReligion} options={RELIGION_OPTIONS} required />
             <div className="space-y-2">
               <Label>Nationality</Label>
               <Input value="INDIAN" readOnly className="bg-muted" />
             </div>
-            <FormField label="Student Aadhar Card No" name="aadhar_no" />
-            <FormField label="Health Issue (if any)" name="health_issue" />
-            <FormField label="Name in Bengali" name="name_bengali" />
+            {fieldVisible("aadhar_no") && <FormField label="Student Aadhar Card No" name="aadhar_no" />}
+            {fieldVisible("health_issue") && <FormField label="Health Issue (if any)" name="health_issue" />}
+            {fieldVisible("name_bengali") && <FormField label="Name in Bengali" name="name_bengali" />}
             <FormField label="Mother's Name" name="mother_name" required />
-            <FormField label="Mother's Occupation" name="mother_occupation" />
-            <FormField label="Mother's Qualification" name="mother_qualification" />
-            <FormField label="Father's Occupation" name="father_occupation" />
-            <FormField label="Father's Qualification" name="father_qualification" />
-            <FormField label="Guardian Name" name="guardian_name" />
-            <FormField label="Relation with Student" name="guardian_relation" />
-            <FormField label="Last Attended Class" name="last_attended_class" />
-            <FormField label="Last Attended Institution" name="last_institution" className="md:col-span-2" />
+            {fieldVisible("mother_occupation") && <FormField label="Mother's Occupation" name="mother_occupation" />}
+            {fieldVisible("mother_qualification") && <FormField label="Mother's Qualification" name="mother_qualification" />}
+            {fieldVisible("father_occupation") && <FormField label="Father's Occupation" name="father_occupation" />}
+            {fieldVisible("father_qualification") && <FormField label="Father's Qualification" name="father_qualification" />}
+            {fieldVisible("guardian_name") && <FormField label="Guardian Name" name="guardian_name" />}
+            {fieldVisible("guardian_relation") && <FormField label="Relation with Student" name="guardian_relation" />}
+            {fieldVisible("last_attended_class") && <FormField label="Last Attended Class" name="last_attended_class" />}
+            {fieldVisible("last_institution") && <FormField label="Last Attended Institution" name="last_institution" className="md:col-span-2" />}
           </div>
         </SectionCard>
 

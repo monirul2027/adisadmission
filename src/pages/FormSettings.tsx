@@ -12,20 +12,8 @@ import { ArrowLeft, Save, Upload, Trash2, Home, Loader2 } from "lucide-react";
 import { checkAdminPermission, checkUserRole, uploadFile } from "@/lib/supabase-helpers";
 import { compressImage } from "@/lib/image-compressor";
 import { getSafeErrorMessage } from "@/lib/safe-error";
-
-const FIELD_LABELS: Record<string, string> = {
-  name_bengali: "Name in Bengali",
-  aadhar_no: "Aadhar Card No",
-  health_issue: "Health Issue",
-  guardian_name: "Guardian Name",
-  guardian_relation: "Guardian Relation",
-  last_attended_class: "Last Attended Class",
-  last_institution: "Last Institution",
-  father_occupation: "Father's Occupation",
-  father_qualification: "Father's Qualification",
-  mother_occupation: "Mother's Occupation",
-  mother_qualification: "Mother's Qualification",
-};
+import { ADMISSION_FIELD_LABELS, readAdmissionVisibility } from "@/lib/admission-field-visibility";
+import { useQueryClient } from "@tanstack/react-query";
 
 const FormSettings = () => {
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>({});
@@ -39,6 +27,7 @@ const FormSettings = () => {
   const [uploadingSignature, setUploadingSignature] = useState<"head_master" | "exam_controller" | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const init = async () => {
@@ -54,7 +43,7 @@ const FormSettings = () => {
         const instructions = data.find(d => d.setting_key === "admit_card_instructions");
         const signatures = data.find(d => d.setting_key === "signature_images");
         const feeDefaults = data.find(d => d.setting_key === "sync_fee_defaults");
-        if (fields) setFieldVisibility(fields.setting_value as Record<string, boolean>);
+        if (fields) setFieldVisibility(readAdmissionVisibility(fields.setting_value));
         if (instructions) setAdmitCardInstructions((instructions.setting_value as any)?.text || "");
         if (signatures) {
           const sigVal = signatures.setting_value as any;
@@ -86,7 +75,7 @@ const FormSettings = () => {
     setSaving(true);
     try {
       const results = await Promise.all([
-        supabase.from("form_settings").update({ setting_value: fieldVisibility }).eq("setting_key", "admission_form_fields"),
+        supabase.from("form_settings").update({ setting_value: fieldVisibility }).eq("setting_key", "admission_form_fields").select("setting_value").single(),
         supabase.from("form_settings").update({ setting_value: { text: sanitizeInstructions(admitCardInstructions) } }).eq("setting_key", "admit_card_instructions"),
         supabase.from("form_settings").upsert({
           setting_key: "signature_images",
@@ -99,6 +88,7 @@ const FormSettings = () => {
       ]);
       const failed = results.find(result => result.error);
       if (failed?.error) throw failed.error;
+      await queryClient.invalidateQueries({ queryKey: ["admission-form-fields"], refetchType: "none" });
       toast({ title: "Settings saved!" });
     } catch (err: any) {
       toast({ title: "Error", description: getSafeErrorMessage(err), variant: "destructive" });
@@ -146,10 +136,11 @@ const FormSettings = () => {
             <CardTitle className="text-primary">Admission Form Field Visibility</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {Object.entries(FIELD_LABELS).map(([key, label]) => (
+            {Object.entries(ADMISSION_FIELD_LABELS).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <Label className="text-sm">{label}</Label>
+                <Label htmlFor={`visibility-${key}`} className="text-sm">{label}</Label>
                 <Switch
+                  id={`visibility-${key}`}
                   checked={fieldVisibility[key] !== false}
                   onCheckedChange={(v) => setFieldVisibility(prev => ({ ...prev, [key]: v }))}
                 />
