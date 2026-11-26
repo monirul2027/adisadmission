@@ -14,6 +14,9 @@ import { compressImage } from "@/lib/image-compressor";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { ADMISSION_FIELD_LABELS, readAdmissionVisibility } from "@/lib/admission-field-visibility";
 import { useQueryClient } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SESSION_OPTIONS } from "@/lib/supabase-helpers";
+import { ACTIVE_SESSION_QUERY_KEY, readActiveSession } from "@/lib/active-session";
 
 const FormSettings = () => {
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>({});
@@ -22,6 +25,7 @@ const FormSettings = () => {
   const [examControllerSignUrl, setExamControllerSignUrl] = useState("");
   const [defaultAdmissionFee, setDefaultAdmissionFee] = useState("0");
   const [defaultMonthlyFee, setDefaultMonthlyFee] = useState("0");
+  const [activeSession, setActiveSession] = useState("2027");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState<"head_master" | "exam_controller" | null>(null);
@@ -43,6 +47,8 @@ const FormSettings = () => {
         const instructions = data.find(d => d.setting_key === "admit_card_instructions");
         const signatures = data.find(d => d.setting_key === "signature_images");
         const feeDefaults = data.find(d => d.setting_key === "sync_fee_defaults");
+        const active = readActiveSession(data.find(d => d.setting_key === "active_session")?.setting_value);
+        if (active) setActiveSession(active);
         if (fields) setFieldVisibility(readAdmissionVisibility(fields.setting_value));
         if (instructions) setAdmitCardInstructions((instructions.setting_value as any)?.text || "");
         if (signatures) {
@@ -85,10 +91,15 @@ const FormSettings = () => {
           setting_key: "sync_fee_defaults",
           setting_value: { admission_fee: admissionFee, monthly_fee: monthlyFee },
         }, { onConflict: "setting_key" }),
+        supabase.from("form_settings").upsert({
+          setting_key: "active_session",
+          setting_value: { session: activeSession },
+        }, { onConflict: "setting_key" }),
       ]);
       const failed = results.find(result => result.error);
       if (failed?.error) throw failed.error;
       await queryClient.invalidateQueries({ queryKey: ["admission-form-fields"], refetchType: "none" });
+      await queryClient.invalidateQueries({ queryKey: ACTIVE_SESSION_QUERY_KEY, refetchType: "none" });
       toast({ title: "Settings saved!" });
     } catch (err: any) {
       toast({ title: "Error", description: getSafeErrorMessage(err), variant: "destructive" });
@@ -131,6 +142,20 @@ const FormSettings = () => {
       </header>
 
       <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-primary">Active Academic Session</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="active-session">Session for all new applications</Label>
+            <Select value={activeSession} onValueChange={setActiveSession}>
+              <SelectTrigger id="active-session" className="w-full sm:max-w-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>{SESSION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">Admission and Admission Test forms are locked to this session. Applicants cannot change it.</p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-primary">Admission Form Field Visibility</CardTitle>

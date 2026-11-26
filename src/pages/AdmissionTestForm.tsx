@@ -5,11 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveSession } from "@/lib/active-session";
+import LockedSession from "@/components/LockedSession";
 import { CheckCircle2, ArrowLeft, Upload, ImagePlus, Loader2, LockKeyhole, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { CLASS_OPTIONS, SESSION_OPTIONS, checkUserRole, uploadFile, cleanupUploads, normalizeClass } from "@/lib/supabase-helpers";
+import { CLASS_OPTIONS, checkUserRole, uploadFile, cleanupUploads, normalizeClass } from "@/lib/supabase-helpers";
 import { getAccountFullName } from "@/lib/auth-flow";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import CameraCaptureDialog from "@/components/CameraCaptureDialog";
@@ -27,13 +29,14 @@ const AdmissionTestForm = () => {
   const [testId, setTestId] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [session, setSession] = useState("");
   const [applyingClass, setApplyingClass] = useState("");
   const [studentSig, setStudentSig] = useState<File | null>(null);
   const [optimizingSignature, setOptimizingSignature] = useState(false);
   const [formFilledBy, setFormFilledBy] = useState("");
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const activeSessionQuery = useActiveSession(Boolean(userId));
+  const session = activeSessionQuery.data ?? "";
 
   const handleSignatureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -200,7 +203,11 @@ const AdmissionTestForm = () => {
       <form onSubmit={handleSubmit} autoComplete="off" noValidate className="mx-auto w-full min-w-0 max-w-3xl space-y-6 px-0 py-8 sm:px-4 md:px-6">
         <SectionCard title="Session & Class" required>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SelectField label="Session" value={session} onValueChange={setSession} options={SESSION_OPTIONS} required />
+            {activeSessionQuery.isError ? (
+              <div className="space-y-2"><p className="text-sm text-destructive">Could not load the session. Please try again.</p><Button type="button" variant="outline" size="sm" onClick={() => void activeSessionQuery.refetch()}>Retry</Button></div>
+            ) : activeSessionQuery.isPending ? (
+              <p className="text-sm text-muted-foreground">Loading session…</p>
+            ) : <LockedSession session={session} label="Session" />}
             <SelectField label="Applying for Class" value={applyingClass} onValueChange={setApplyingClass} options={CLASS_OPTIONS} required />
           </div>
         </SectionCard>

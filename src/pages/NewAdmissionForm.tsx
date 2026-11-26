@@ -10,7 +10,7 @@ import { CheckCircle2, Upload, ArrowLeft, FileCheck2, Loader2, ImagePlus, LockKe
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, SESSION_OPTIONS, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
+import { uploadFile, cleanupUploads, CLASS_OPTIONS, SEX_OPTIONS, RELIGION_OPTIONS, checkUserRole, normalizeClass } from "@/lib/supabase-helpers";
 import { getAccountFullName } from "@/lib/auth-flow";
 import ImageCropDialog from "@/components/ImageCropDialog";
 import CameraCaptureDialog from "@/components/CameraCaptureDialog";
@@ -18,6 +18,8 @@ import { useNavigate } from "react-router-dom";
 import { getSafeErrorMessage } from "@/lib/safe-error";
 import { admissionFormSchema } from "@/lib/form-validation";
 import { useQuery } from "@tanstack/react-query";
+import { useActiveSession } from "@/lib/active-session";
+import LockedSession from "@/components/LockedSession";
 import DateOfBirthInput from "@/components/DateOfBirthInput";
 import { datePartsToISO, type DateParts } from "@/lib/date-entry";
 import { isAdmissionFieldVisible, readAdmissionVisibility } from "@/lib/admission-field-visibility";
@@ -39,7 +41,6 @@ const NewAdmissionForm = () => {
   const [guardianSig, setGuardianSig] = useState<File | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [session, setSession] = useState("");
   const [desiredClass, setDesiredClass] = useState("");
   const [sex, setSex] = useState("");
   const [religion, setReligion] = useState("");
@@ -85,6 +86,8 @@ const NewAdmissionForm = () => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+  const activeSessionQuery = useActiveSession(Boolean(userId));
+  const session = activeSessionQuery.data ?? "";
   const fieldVisible = (key: string) => isAdmissionFieldVisible(visibilityQuery.data ?? {}, key);
 
   const supportedImage = (file: File) => /image\/(jpeg|png)/i.test(file.type) || /\.(jpe?g|png)$/i.test(file.name);
@@ -325,11 +328,11 @@ const NewAdmissionForm = () => {
     );
   }
 
-  if (!userId || visibilityQuery.isPending) {
+  if (!userId || visibilityQuery.isPending || activeSessionQuery.isPending) {
     return <div className="flex min-h-screen items-center justify-center bg-secondary text-muted-foreground">Loading admission form...</div>;
   }
-  if (visibilityQuery.isError) {
-    return <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-secondary p-4"><p className="text-destructive">Unable to load admission form settings.</p><Button onClick={() => void visibilityQuery.refetch()}>Retry</Button></div>;
+  if (visibilityQuery.isError || activeSessionQuery.isError) {
+    return <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-secondary p-4"><p className="text-destructive">Unable to load admission form settings.</p><Button onClick={() => { void visibilityQuery.refetch(); void activeSessionQuery.refetch(); }}>Retry</Button></div>;
   }
 
   return (
@@ -359,7 +362,7 @@ const NewAdmissionForm = () => {
         </div>
         {/* Session Selection */}
         <SectionCard title="Session" required>
-          <SelectField label="Academic Session" value={session} onValueChange={setSession} options={SESSION_OPTIONS} required />
+          <LockedSession session={session} />
         </SectionCard>
 
         {/* Student Photograph */}

@@ -11,14 +11,14 @@ import { ADMISSION_FIELD_LABELS, readAdmissionVisibility } from "@/lib/admission
 
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
-const database = vi.hoisted(() => ({ visibility: {} as Record<string, boolean>, error: null as null | { message: string }, missingRow: false }));
+const database = vi.hoisted(() => ({ visibility: {} as Record<string, boolean>, error: null as null | { message: string }, missingRow: false, activeSession: "2028" as unknown }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     auth: { getSession: async () => ({ data: { session: { user: { id: "test-user", user_metadata: { full_name: "Test Applicant" } } } } }) },
     from: () => ({
       select: () => ({
         then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: [{ setting_key: "admission_form_fields", setting_value: database.visibility }] }).then(resolve),
-        eq: () => ({ maybeSingle: async () => ({ data: { setting_value: database.visibility }, error: database.error }) }),
+        eq: (_col: string, key: string) => ({ maybeSingle: async () => ({ data: { setting_value: key === "active_session" ? { session: database.activeSession } : database.visibility }, error: database.error }) }),
       }),
       update: (payload: { setting_value: Record<string, boolean> }) => ({ eq: () => ({
         then: (resolve: (value: unknown) => unknown) => Promise.resolve({ error: null }).then(resolve),
@@ -38,7 +38,7 @@ vi.mock("@/lib/supabase-helpers", async (original) => ({
   checkAdminPermission: async () => true,
 }));
 
-afterEach(() => { cleanup(); database.visibility = {}; database.error = null; database.missingRow = false; });
+afterEach(() => { cleanup(); database.visibility = {}; database.error = null; database.missingRow = false; database.activeSession = "2028"; });
 
 function DateHarness() {
   const [value, setValue] = useState<DateParts>({ day: "", month: "", year: "" });
@@ -157,5 +157,27 @@ describe("Admission Form Field Visibility", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save Settings" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Save Settings" })).toBeEnabled());
     expect(database.visibility.name_bengali).toBeUndefined();
+  });
+});
+describe("active academic session lock", () => {
+  it("shows the admin-set session locked, with no session dropdown", async () => {
+    renderForm();
+    expect(await screen.findByLabelText("Academic Session: 2028")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /academic session/i })).toBeNull();
+  });
+
+  it("blocks the form when the session setting is missing", async () => {
+    database.activeSession = undefined;
+    renderForm();
+    expect(await screen.findByText("Unable to load admission form settings.", {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+});
+
+import { readActiveSession } from "@/lib/active-session";
+describe("readActiveSession", () => {
+  it("accepts a 4-digit year and rejects anything else", () => {
+    expect(readActiveSession({ session: "2027" })).toBe("2027");
+    expect(readActiveSession({ session: "abc" })).toBeNull();
+    expect(readActiveSession(null)).toBeNull();
   });
 });
