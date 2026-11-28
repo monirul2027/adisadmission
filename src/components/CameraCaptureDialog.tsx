@@ -24,6 +24,46 @@ type CameraCaptureDialogProps = {
   onCancel: () => void;
 };
 
+type ExtendedTrackCapabilities = MediaTrackCapabilities & {
+  focusMode?: string[];
+  exposureMode?: string[];
+};
+
+type ExtendedTrackConstraintSet = MediaTrackConstraintSet & {
+  focusMode?: string;
+  exposureMode?: string;
+};
+
+type PhotoCapabilitiesRange = {
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+type NativePhotoCapabilities = {
+  imageWidth?: PhotoCapabilitiesRange;
+  imageHeight?: PhotoCapabilitiesRange;
+};
+
+type NativePhotoSettings = {
+  imageWidth?: number;
+  imageHeight?: number;
+};
+
+type NativeImageCaptureInstance = {
+  takePhoto: (settings?: NativePhotoSettings) => Promise<Blob>;
+  getPhotoCapabilities?: () => Promise<NativePhotoCapabilities>;
+};
+
+type NativeImageCaptureConstructor = new (track: MediaStreamTrack) => NativeImageCaptureInstance;
+
+type DecodedDrawable = {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  cleanup: () => void;
+};
+
 const SIGNATURE_GUIDE = {
   viewWidth: 480,
   viewHeight: 270,
@@ -88,6 +128,119 @@ const getCameraErrorCopy = (error: unknown): { title: string; description: strin
   };
 };
 
+const canvasToJpegBlob = (canvas: HTMLCanvasElement, quality = 0.92): Promise<Blob> =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (value) => (value ? resolve(value) : reject(new Error("Could not encode captured photo."))),
+      "image/jpeg",
+      quality,
+    );
+  });
+
+const decodeBlobToDrawable = async (blob: Blob): Promise<DecodedDrawable> => {
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(blob);
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      cleanup: () => bitmap.close(),
+    };
+  }
+  const objectUrl = URL.createObjectURL(blob);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not decode captured photo."));
+    };
+    img.src = objectUrl;
+  });
+  return {
+    source: image,
+    width: image.naturalWidth,
+    height: image.naturalHeight,
+    cleanup: () => URL.revokeObjectURL(objectUrl),
+  };
+};
+
+const drawSignatureStripToCanvas = (
+  source: CanvasImageSource,
+  srcW: number,
+  srcH: number,
+  boxW: number,
+  boxH: number,
+): HTMLCanvasElement => {
+  // Strictly export only the visible signature strip cutout inside the object-cover viewport.
+  const scale = Math.max(boxW / srcW, boxH / srcH);
+  const scaledW = srcW * scale;
+  const scaledH = srcH * scale;
+  const offsetX = (scaledW - boxW) / 2;
+  const offsetY = (scaledH - boxH) / 2;
+
+  const px = (SIGNATURE_GUIDE.x / SIGNATURE_GUIDE.viewWidth) * boxW;
+  const py = (SIGNATURE_GUIDE.y / SIGNATURE_GUIDE.viewHeight) * boxH;
+  const pw = (SIGNATURE_GUIDE.width / SIGNATURE_GUIDE.viewWidth) * boxW;
+  const ph = (SIGNATURE_GUIDE.height / SIGNATURE_GUIDE.viewHeight) * boxH;
+
+  const sx = Math.max(0, Math.min(srcW - 1, Math.round((px + offsetX) / scale)));
+  const sy = Math.max(0, Math.min(srcH - 1, Math.round((py + offsetY) / scale)));
+  const sWidth = Math.max(1, Math.min(srcW - sx, Math.round(pw / scale)));
+  const sHeight = Math.max(1, Math.min(srcH - sy, Math.round(ph / scale)));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = sWidth;
+  canvas.height = sHeight;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Could not capture image in this browser.");
+  }
+  context.drawImage(source, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+  return canvas;
+};
+
+const captureNativeStillBlob = async (
+  track: MediaStreamTrack | undefined,
+  targetWidth: number,
+): Promise<Blob | null> => {
+  if (!track || track.readyState !== "live" || typeof window === "undefined") {
+    return null;
+  }
+  const ImageCaptureCtor = (window as Window & { ImageCapture?: NativeImageCaptureConstructor }).ImageCapture;
+  if (typeof ImageCaptureCtor !== "function") {
+    return null;
+  }
+
+  try {
+    const imageCapture = new ImageCaptureCtor(track);
+    let photoSettings: NativePhotoSettings | undefined;
+    if (typeof imageCapture.getPhotoCapabilities === "function") {
+      try {
+        const capabilities = await imageCapture.getPhotoCapabilities();
+        const minW = capabilities?.imageWidth?.min;
+        const maxW = capabilities?.imageWidth?.max;
+        if (typeof minW === "number" && typeof maxW === "number" && maxW >= minW) {
+          photoSettings = { imageWidth: Math.min(maxW, Math.max(minW, targetWidth)) };
+        }
+      } catch {
+        // Proceed without explicit photoSettings if getPhotoCapabilities is unsupported.
+      }
+    }
+
+    if (photoSettings) {
+      try {
+        return await imageCapture.takePhoto(photoSettings);
+      } catch {
+        // Retry with default sensor settings if explicit imageWidth is rejected.
+      }
+    }
+    return await imageCapture.takePhoto();
+  } catch {
+    return null;
+  }
+};
+
 export default function CameraCaptureDialog({
   mode = "photo",
   title,
@@ -143,17 +296,68 @@ export default function CameraCaptureDialog({
       }
 
       try {
-        const videoConstraints: MediaTrackConstraints = isPhotoMode
+        const primaryVideoConstraints: MediaTrackConstraints = isPhotoMode
+          ? {
+              facingMode,
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            }
+          : {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 2560 },
+              height: { ideal: 1440 },
+            };
+
+        const fallbackVideoConstraints: MediaTrackConstraints = isPhotoMode
           ? { facingMode }
           : { facingMode: { ideal: "environment" } };
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-        });
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: primaryVideoConstraints,
+          });
+        } catch (primaryErr: unknown) {
+          const primaryErrName =
+            primaryErr instanceof DOMException || primaryErr instanceof Error ? primaryErr.name : "";
+          if (primaryErrName === "OverconstrainedError") {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: fallbackVideoConstraints,
+            });
+          } else {
+            throw primaryErr;
+          }
+        }
 
         if (!active) {
           stream.getTracks().forEach((track) => track.stop());
           return;
+        }
+
+        // Enable continuous hardware autofocus & exposure when supported by the device camera.
+        const track = stream.getVideoTracks()[0];
+        if (track && typeof track.getCapabilities === "function") {
+          try {
+            const capabilities = track.getCapabilities() as ExtendedTrackCapabilities;
+            const advancedConstraints: ExtendedTrackConstraintSet[] = [];
+            if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
+              advancedConstraints.push({ focusMode: "continuous" });
+            }
+            if (capabilities.exposureMode && capabilities.exposureMode.includes("continuous")) {
+              advancedConstraints.push({ exposureMode: "continuous" });
+            }
+            if (advancedConstraints.length > 0 && typeof track.applyConstraints === "function") {
+              void track
+                .applyConstraints({
+                  advanced: advancedConstraints,
+                })
+                .catch(() => {
+                  // Non-fatal if device refuses advanced constraints
+                });
+            }
+          } catch {
+            // Non-fatal if getCapabilities throws on a specific browser
+          }
         }
 
         streamRef.current = stream;
@@ -223,62 +427,85 @@ export default function CameraCaptureDialog({
 
     setCapturing(true);
     try {
-      const canvas = document.createElement("canvas");
-      const vidW = video.videoWidth;
-      const vidH = video.videoHeight;
+      const rect = video.getBoundingClientRect();
+      const boxW = rect.width > 0 ? rect.width : SIGNATURE_GUIDE.viewWidth;
+      const boxH = rect.height > 0 ? rect.height : SIGNATURE_GUIDE.viewHeight;
+      const activeTrack = streamRef.current?.getVideoTracks()[0];
 
-      if (mode === "signature") {
-        // Strictly export only the visible signature strip cutout inside the object-cover video feed.
-        const rect = video.getBoundingClientRect();
-        const boxW = rect.width > 0 ? rect.width : SIGNATURE_GUIDE.viewWidth;
-        const boxH = rect.height > 0 ? rect.height : SIGNATURE_GUIDE.viewHeight;
+      let finalBlob: Blob | null = null;
 
-        const scale = Math.max(boxW / vidW, boxH / vidH);
-        const scaledW = vidW * scale;
-        const scaledH = vidH * scale;
-        const offsetX = (scaledW - boxW) / 2;
-        const offsetY = (scaledH - boxH) / 2;
-
-        const px = (SIGNATURE_GUIDE.x / SIGNATURE_GUIDE.viewWidth) * boxW;
-        const py = (SIGNATURE_GUIDE.y / SIGNATURE_GUIDE.viewHeight) * boxH;
-        const pw = (SIGNATURE_GUIDE.width / SIGNATURE_GUIDE.viewWidth) * boxW;
-        const ph = (SIGNATURE_GUIDE.height / SIGNATURE_GUIDE.viewHeight) * boxH;
-
-        const sx = Math.max(0, Math.min(vidW - 1, Math.round((px + offsetX) / scale)));
-        const sy = Math.max(0, Math.min(vidH - 1, Math.round((py + offsetY) / scale)));
-        const sWidth = Math.max(1, Math.min(vidW - sx, Math.round(pw / scale)));
-        const sHeight = Math.max(1, Math.min(vidH - sy, Math.round(ph / scale)));
-
-        canvas.width = sWidth;
-        canvas.height = sHeight;
-        const context = canvas.getContext("2d");
-        if (!context) {
-          throw new Error("Could not capture image in this browser.");
+      // 1. Prefer native sensor still capture (ImageCapture.takePhoto) on Chromium/Android for razor-sharp text.
+      const nativeBlob = await captureNativeStillBlob(activeTrack, isPhotoMode ? 1920 : 2560);
+      if (nativeBlob) {
+        try {
+          if (mode === "signature") {
+            const decoded = await decodeBlobToDrawable(nativeBlob);
+            try {
+              const canvas = drawSignatureStripToCanvas(decoded.source, decoded.width, decoded.height, boxW, boxH);
+              finalBlob = await canvasToJpegBlob(canvas, 0.92);
+            } finally {
+              decoded.cleanup();
+            }
+          } else if (shouldMirror) {
+            const decoded = await decodeBlobToDrawable(nativeBlob);
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = decoded.width;
+              canvas.height = decoded.height;
+              const context = canvas.getContext("2d");
+              if (!context) throw new Error("Could not capture image in this browser.");
+              context.translate(canvas.width, 0);
+              context.scale(-1, 1);
+              context.drawImage(decoded.source, 0, 0, canvas.width, canvas.height);
+              finalBlob = await canvasToJpegBlob(canvas, 0.92);
+            } finally {
+              decoded.cleanup();
+            }
+          } else if (/^image\/jpe?g$/i.test(nativeBlob.type)) {
+            finalBlob = nativeBlob;
+          } else {
+            const decoded = await decodeBlobToDrawable(nativeBlob);
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = decoded.width;
+              canvas.height = decoded.height;
+              const context = canvas.getContext("2d");
+              if (!context) throw new Error("Could not capture image in this browser.");
+              context.drawImage(decoded.source, 0, 0, canvas.width, canvas.height);
+              finalBlob = await canvasToJpegBlob(canvas, 0.92);
+            } finally {
+              decoded.cleanup();
+            }
+          }
+        } catch {
+          // Transparently fall back to HD video canvas capture below.
+          finalBlob = null;
         }
-        context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-      } else {
-        canvas.width = vidW;
-        canvas.height = vidH;
-        const context = canvas.getContext("2d");
-        if (!context) {
-          throw new Error("Could not capture image in this browser.");
-        }
-        if (shouldMirror) {
-          context.translate(canvas.width, 0);
-          context.scale(-1, 1);
-        }
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
 
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (value) => (value ? resolve(value) : reject(new Error("Could not encode captured photo."))),
-          "image/jpeg",
-          0.92,
-        );
-      });
+      // 2. Fallback: High-resolution <video> -> <canvas> capture (Safari, Firefox, or when takePhoto is unavailable).
+      if (!finalBlob) {
+        if (mode === "signature") {
+          const canvas = drawSignatureStripToCanvas(video, video.videoWidth, video.videoHeight, boxW, boxH);
+          finalBlob = await canvasToJpegBlob(canvas, 0.92);
+        } else {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const context = canvas.getContext("2d");
+          if (!context) {
+            throw new Error("Could not capture image in this browser.");
+          }
+          if (shouldMirror) {
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+          }
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          finalBlob = await canvasToJpegBlob(canvas, 0.92);
+        }
+      }
 
-      const file = new File([blob], config.fileName, {
+      const file = new File([finalBlob], config.fileName, {
         type: "image/jpeg",
         lastModified: Date.now(),
       });
